@@ -1,0 +1,19 @@
+FROM node:22-alpine
+
+WORKDIR /app
+
+# Instala dependências com base no package.json
+COPY package*.json ./
+RUN npm install
+
+# Gera o Prisma Client
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Copia o restante do código
+# (em dev, o volume sobrescreve, mas mantemos para o caso de build standalone)
+COPY . .
+
+EXPOSE 4000
+
+CMD ["npm", "run", "dev"]

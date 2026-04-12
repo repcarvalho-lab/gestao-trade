@@ -1,0 +1,64 @@
+name: traderos-dev
+
+services:
+  postgres-dev:
+    image: postgres:16-alpine
+    container_name: traderos-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: traderos_dev
+      POSTGRES_USER: traderos
+      POSTGRES_PASSWORD: traderos_dev_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traderos -d traderos_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - traderos-dev
+
+  backend-dev:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile.dev
+    container_name: traderos-backend-dev
+    restart: unless-stopped
+    env_file: .env.dev
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./apps/backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+    networks:
+      - traderos-dev
+
+  frontend-dev:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile.dev
+    container_name: traderos-frontend-dev
+    restart: unless-stopped
+    env_file: .env.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend-dev
+    networks:
+      - traderos-dev
+
+networks:
+  traderos-dev:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:
