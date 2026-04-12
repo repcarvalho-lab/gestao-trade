@@ -6,6 +6,7 @@ import tradingDayRoutes from './tradingDay.routes'
 import tradesRoutes from './trades.routes'
 import movimentosRoutes from './movimentos.routes'
 import analyticsRoutes from './analytics.routes'
+import aportesRoutes from './aportes.routes'
 
 export const router = Router()
 
@@ -17,4 +18,5 @@ router.use('/motivos', motivosRoutes)
 router.use('/trading-days', tradingDayRoutes)
 router.use('/trades', tradesRoutes)
 router.use('/movimentos', movimentosRoutes)
+router.use('/aportes', aportesRoutes)
 router.use('/', analyticsRoutes)

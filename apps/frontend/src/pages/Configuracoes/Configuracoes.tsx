@@ -158,6 +158,188 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
   )
 }
 
+// ─── Planner de Aportes ───────────────────────────────────────
+interface AportePlanejado { id: string; mes: string; valor: number }
+
+function AportesPlanner() {
+  const [aportes, setAportes] = useState<AportePlanejado[]>([])
+  const [loading, setLoading] = useState(true)
+  const [novoMes, setNovoMes] = useState('')
+  const [novoValor, setNovoValor] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoValor, setEditandoValor] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const mesesOpcoes = gerarOpcoesMeses(24)
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/aportes')
+      setAportes(data)
+    } catch { setError('Erro ao carregar aportes.') }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const mesesJaUsados = aportes.map(a => a.mes)
+
+  const handleAdicionar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoMes || !novoValor) { setError('Selecione o mês e informe o valor.'); return }
+    const val = parseFloat(novoValor)
+    if (isNaN(val) || val <= 0) { setError('Informe um valor válido.'); return }
+    setSaving(true)
+    try {
+      await api.post('/aportes', { mes: novoMes, valor: val })
+      setNovoMes('')
+      setNovoValor('')
+      setError('')
+      carregar()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } }
+      setError(e?.response?.data?.error ?? 'Erro ao adicionar aporte.')
+    } finally { setSaving(false) }
+  }
+
+  const handleEditar = async (id: string) => {
+    const val = parseFloat(editandoValor)
+    if (isNaN(val) || val <= 0) { setError('Informe um valor válido.'); return }
+    setSaving(true)
+    try {
+      await api.patch(`/aportes/${id}`, { valor: val })
+      setEditandoId(null)
+      setError('')
+      carregar()
+    } catch { setError('Erro ao salvar.') }
+    finally { setSaving(false) }
+  }
+
+  const handleDeletar = async (id: string) => {
+    try {
+      await api.delete(`/aportes/${id}`)
+      carregar()
+    } catch { setError('Erro ao remover aporte.') }
+  }
+
+  const totalAportes = aportes.reduce((s, a) => s + a.valor, 0)
+
+  return (
+    <div>
+      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
+        Planeje aportes em diferentes meses. Cada aporte é aplicado automaticamente na Projeção Anual.
+      </p>
+
+      {/* Form adicionar */}
+      <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div>
+          <label className="label" style={{ marginBottom: '0.25rem' }}>Mês</label>
+          <select className="input" style={{ width: 160 }} value={novoMes}
+            onChange={e => setNovoMes(e.target.value)} id="novo-aporte-mes">
+            <option value="">— Selecione —</option>
+            {mesesOpcoes
+              .filter(o => !mesesJaUsados.includes(o.value))
+              .map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" style={{ marginBottom: '0.25rem' }}>Valor (US$)</label>
+          <input className="input" type="number" step="0.01" min="0.01" placeholder="0.00"
+            style={{ width: 140 }} value={novoValor} onChange={e => setNovoValor(e.target.value)}
+            id="novo-aporte-valor" />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={saving || !novoMes || !novoValor}
+          style={{ whiteSpace: 'nowrap' }}>
+          {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
+        </button>
+      </form>
+
+      {error && (
+        <div style={{ marginBottom: '0.75rem', padding: '0.5rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Lista */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      ) : aportes.length === 0 ? (
+        <div style={{ padding: '1.5rem', textAlign: 'center', borderRadius: '0.625rem', border: '1px dashed var(--border)', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+          Nenhum aporte planejado ainda.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {aportes.map(a => (
+            <div key={a.id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.875rem',
+              borderRadius: '0.625rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
+            }}>
+              {/* Mês */}
+              <div style={{ minWidth: 80, fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.875rem' }}>
+                {mesParaLabel(a.mes)}
+              </div>
+              {/* Valor / edit */}
+              <div style={{ flex: 1 }}>
+                {editandoId === a.id ? (
+                  <input className="input" type="number" step="0.01" min="0.01"
+                    value={editandoValor} onChange={e => setEditandoValor(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleEditar(a.id)}
+                    autoFocus style={{ maxWidth: 160 }} />
+                ) : (
+                  <span style={{ fontWeight: 700, color: 'var(--accent-win)', fontSize: '0.9rem' }}>
+                    US$ {a.valor.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              {/* Ações */}
+              <div style={{ display: 'flex', gap: '0.375rem' }}>
+                {editandoId === a.id ? (
+                  <>
+                    <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => handleEditar(a.id)}>
+                      <Check size={12} /> Salvar
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => setEditandoId(null)}>
+                      <X size={12} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => { setEditandoId(a.id); setEditandoValor(String(a.valor)) }}
+                      title="Editar valor">
+                      <Pencil size={13} />
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
+                      onClick={() => handleDeletar(a.id)} title="Remover aporte">
+                      <X size={13} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Total */}
+          <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Total de aportes planejados
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>
+              US$ {totalAportes.toFixed(2)}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Aba Financeiro ───────────────────────────────────────────
 function TabFinanceiro({ form, set, onSave, saving, saved }: {
   form: Partial<Configuration>; set: (k: keyof Configuration, v: string | boolean) => void
@@ -192,49 +374,13 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
         value={form.cambioVenda ?? 4.8}
         onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
 
-      {/* Planejamento de Aporte */}
+      {/* Planejamento de Aportes */}
       <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>
-        Planejamento de Aporte
+        Aportes Planejados
       </div>
 
-      {/* Mês e Valor do aporte em linha */}
-      <div style={{ padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-          Aporte Planejado
-        </div>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
-          Informe o mês previsto e o valor do aporte. Será usado na projeção anual.
-        </p>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ flex: '0 0 auto' }}>
-            <label className="label" htmlFor="aporteMes" style={{ marginBottom: '0.3rem' }}>Mês do Aporte</label>
-            <select id="aporteMes" className="input" style={{ width: 160 }}
-              value={form.aporteMes ?? ''}
-              onChange={e => set('aporteMes', e.target.value)}>
-              <option value="">— Selecione —</option>
-              {mesesOpcoes.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div style={{ flex: '0 0 auto' }}>
-            <label className="label" htmlFor="aporteValor" style={{ marginBottom: '0.3rem' }}>Valor (US$)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <input id="aporteValor" className="input" type="number" step="0.01" min="0"
-                placeholder="0.00" style={{ width: 160 }}
-                value={form.aporteValor ?? ''}
-                onChange={e => set('aporteValor', e.target.value)} />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>US$</span>
-            </div>
-          </div>
-        </div>
-        {form.aporteMes && form.aporteValor ? (
-          <div style={{ marginTop: '0.625rem', fontSize: '0.78rem', color: 'var(--accent-blue)' }}>
-            ✓ Aporte de US$ {Number(form.aporteValor).toFixed(2)} previsto para {mesParaLabel(form.aporteMes)}
-          </div>
-        ) : null}
-      </div>
+      <AportesPlanner />
 
       {/* Planejamento de Saques */}
       <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />

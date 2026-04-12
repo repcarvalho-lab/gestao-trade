@@ -71,6 +71,7 @@ model User {
   movimentos     DepositoSaque[]
   weeklyReports  WeeklyReport[]
   monthlyReports MonthlyReport[]
+  aportes        AportePlanejado[]
 }
 
 model Configuration {
@@ -93,14 +94,27 @@ model Configuration {
   retornoRealista     Float   @default(0.40)
   retornoAgressivo    Float   @default(0.60)
   aporteValor         Float?
-  aporteMes           String?   // formato: "2026-06"
+  aporteMes           String?   // mantido apenas para migration — será removido
   saqueMinimo         Float?
   saqueMaximo         Float?
-  saquesMesInicio     String?   // formato: "2026-07" — mês em que deseja começar a sacar
+  saquesMesInicio     String?   // formato: "2026-07"
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AportePlanejado {
+  id        String   @id @default(uuid())
+  userId    String
+  mes       String   // formato: "2026-06"
+  valor     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mes])
 }
 
 model TradingDay {

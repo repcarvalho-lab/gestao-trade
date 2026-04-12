@@ -22,28 +22,31 @@ export async function getProjecao(req: Request, res: Response) {
   const agora = new Date()
   const mesInicio = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
 
-  // Aportes e saques por mês (query params opcionais)
-  const aportesPorMesParam = req.query.aportes
-    ? JSON.parse(req.query.aportes as string)
-    : {}
-  const saquesPorMesParam = req.query.saques
+  // Aportes planejados do banco (merged com query params opcionais)
+  const aportesDb = await prisma.aportePlanejado.findMany({ where: { userId } })
+  const aportesPorMes: Record<string, number> = {}
+  for (const a of aportesDb) {
+    aportesPorMes[a.mes] = a.valor
+  }
+  // Query params sobrescrevem os do banco (para simulações)
+  if (req.query.aportes) {
+    const override = JSON.parse(req.query.aportes as string)
+    Object.assign(aportesPorMes, override)
+  }
+
+  const saquesPorMes: Record<string, number> = req.query.saques
     ? JSON.parse(req.query.saques as string)
     : {}
-
-  // Aplica aporte configurado se não informado manualmente
-  if (config.aporteValor && config.aporteMes) {
-    aportesPorMesParam[config.aporteMes] =
-      aportesPorMesParam[config.aporteMes] ?? config.aporteValor
-  }
 
   const projecao = calcularProjecaoAnual({
     capitalAtual,
     config,
-    aportesPorMes: aportesPorMesParam,
-    saquesPorMes: saquesPorMesParam,
+    aportesPorMes,
+    saquesPorMes,
     mesInicio,
     meses: 12,
   })
 
-  res.json({ capitalAtual, mesInicio, projecao })
+  res.json({ capitalAtual, mesInicio, aportesPlanejados: aportesDb, projecao })
 }
+
