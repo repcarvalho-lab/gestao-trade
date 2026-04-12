@@ -92,9 +92,11 @@ model Configuration {
   retornoConservador  Float   @default(0.20)
   retornoRealista     Float   @default(0.40)
   retornoAgressivo    Float   @default(0.60)
-  aporteJunho         Float?
+  aporteValor         Float?
+  aporteMes           String?   // formato: "2026-06"
   saqueMinimo         Float?
   saqueMaximo         Float?
+  saquesMesInicio     String?   // formato: "2026-07" — mês em que deseja começar a sacar
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

@@ -48,9 +48,11 @@ export async function getDashboard(userId: string) {
       maiorLoss,
     },
     financeiro: {
-      aporteJunho: config?.aporteJunho ?? 0,
+      aporteValor: config?.aporteValor ?? 0,
+      aporteMes: config?.aporteMes ?? null,
       saqueMinimo: config?.saqueMinimo ?? 0,
       saqueMaximo: config?.saqueMaximo ?? 0,
+      saquesMesInicio: config?.saquesMesInicio ?? null,
     },
     evolucaoCapital,
     semanas: semanas.reverse(),

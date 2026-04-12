@@ -30,12 +30,10 @@ export async function getProjecao(req: Request, res: Response) {
     ? JSON.parse(req.query.saques as string)
     : {}
 
-  // Aplica aporte de junho da configuração se não informado
-  if (config.aporteJunho) {
-    const anoAtual = agora.getFullYear()
-    const chaveJunho = `${anoAtual}-06`
-    aportesPorMesParam[chaveJunho] =
-      aportesPorMesParam[chaveJunho] ?? config.aporteJunho
+  // Aplica aporte configurado se não informado manualmente
+  if (config.aporteValor && config.aporteMes) {
+    aportesPorMesParam[config.aporteMes] =
+      aportesPorMesParam[config.aporteMes] ?? config.aporteValor
   }
 
   const projecao = calcularProjecaoAnual({

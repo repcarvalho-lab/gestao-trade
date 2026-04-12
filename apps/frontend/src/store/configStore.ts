@@ -19,9 +19,11 @@ export interface Configuration {
   retornoConservador: number
   retornoRealista: number
   retornoAgressivo: number
-  aporteJunho: number | null
+  aporteValor: number | null
+  aporteMes: string | null
   saqueMinimo: number | null
   saqueMaximo: number | null
+  saquesMesInicio: string | null
 }
 
 interface ConfigState {

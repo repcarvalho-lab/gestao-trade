@@ -8,30 +8,41 @@ import api from '../../services/api'
 
 // ─── Tipos ────────────────────────────────────────────────────
 interface MotivoEntrada { id: string; nome: string; ativo: boolean }
-
 type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos'
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: 'estrategia', label: 'Estratégia', icon: TrendingUp },
-  { key: 'financeiro', label: 'Financeiro', icon: DollarSign },
-  { key: 'projecao',   label: 'Projeção',   icon: BarChart2 },
-  { key: 'motivos',    label: 'Motivos de Entrada', icon: Tag },
+  { key: 'estrategia', label: 'Estratégia',          icon: TrendingUp },
+  { key: 'financeiro', label: 'Financeiro',           icon: DollarSign },
+  { key: 'projecao',   label: 'Projeção',             icon: BarChart2 },
+  { key: 'motivos',    label: 'Motivos de Entrada',   icon: Tag },
 ]
+
+// ─── Helpers de mês ───────────────────────────────────────────
+function mesParaLabel(mes: string | null | undefined): string {
+  if (!mes) return ''
+  const [ano, m] = mes.split('-')
+  const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  return `${nomes[Number(m) - 1]}/${ano}`
+}
+
+function gerarOpcoesMeses(qtd = 24): { value: string; label: string }[] {
+  const resultado = []
+  const agora = new Date()
+  for (let i = 0; i < qtd; i++) {
+    const d = new Date(agora.getFullYear(), agora.getMonth() + i, 1)
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    resultado.push({ value: valor, label: mesParaLabel(valor) })
+  }
+  return resultado
+}
 
 // ─── Campo de configuração ────────────────────────────────────
 function ConfigField({
   label, desc, id, type = 'number', value, onChange, step, min, max, suffix,
 }: {
-  label: string
-  desc?: string
-  id: string
-  type?: string
-  value: string | number | boolean
-  onChange: (v: string | boolean) => void
-  step?: string
-  min?: string
-  max?: string
-  suffix?: string
+  label: string; desc?: string; id: string; type?: string
+  value: string | number | boolean; onChange: (v: string | boolean) => void
+  step?: string; min?: string; max?: string; suffix?: string
 }) {
   if (type === 'boolean') {
     return (
@@ -41,9 +52,7 @@ function ConfigField({
           {desc && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{desc}</div>}
         </div>
         <button
-          id={id}
-          type="button"
-          onClick={() => onChange(!value)}
+          id={id} type="button" onClick={() => onChange(!value)}
           style={{
             position: 'relative', width: 44, height: 24, borderRadius: 12,
             border: 'none', cursor: 'pointer', transition: 'background 0.2s',
@@ -66,17 +75,8 @@ function ConfigField({
         {desc && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{desc}</span>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <input
-          id={id}
-          className="input"
-          type={type}
-          step={step}
-          min={min}
-          max={max}
-          value={String(value)}
-          onChange={e => onChange(e.target.value)}
-          style={{ maxWidth: 200 }}
-        />
+        <input id={id} className="input" type={type} step={step} min={min} max={max}
+          value={String(value)} onChange={e => onChange(e.target.value)} style={{ maxWidth: 200 }} />
         {suffix && <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{suffix}</span>}
       </div>
     </div>
@@ -85,27 +85,73 @@ function ConfigField({
 
 // ─── Aba Estratégia ───────────────────────────────────────────
 function TabEstrategia({ form, set, onSave, saving, saved }: {
-  form: Partial<Configuration>
-  set: (k: keyof Configuration, v: string | boolean) => void
-  onSave: () => void
-  saving: boolean
-  saved: boolean
+  form: Partial<Configuration>; set: (k: keyof Configuration, v: string | boolean) => void
+  onSave: () => void; saving: boolean; saved: boolean
 }) {
   return (
     <div>
       <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Parâmetros de Estratégia</h3>
       <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Define metas, stops e estrutura de ciclos Martingale.</p>
 
-      <ConfigField id="metaIdealPct" label="Meta Ideal (%)" desc="Percentual mínimo de ganho para considerar encerrar o dia" type="number" step="0.001" min="0" max="1" value={Number((form.metaIdealPct ?? 0.02) * 100).toFixed(2)} onChange={v => set('metaIdealPct', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="metaMaximaPct" label="Meta Máxima (%)" desc="Percentual bônus — não obrigatório encerrar ao atingir" type="number" step="0.001" min="0" max="1" value={Number((form.metaMaximaPct ?? 0.03) * 100).toFixed(2)} onChange={v => set('metaMaximaPct', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="stopDiarioPct" label="Stop Diário (%)" desc="Percentual máximo de perda no dia" type="number" step="0.001" min="0" max="1" value={Number((form.stopDiarioPct ?? 0.06) * 100).toFixed(2)} onChange={v => set('stopDiarioPct', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="riscoMaxCicloPct" label="Risco Máximo por Ciclo (%)" desc="Percentual do capital comprometido no ciclo" type="number" step="0.001" min="0" max="1" value={Number((form.riscoMaxCicloPct ?? 0.06) * 100).toFixed(2)} onChange={v => set('riscoMaxCicloPct', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="pctSugeridaEntrada" label="% Sugerida de Entrada" desc="Base para calcular o valor sugerido de ENTR" type="number" step="0.001" min="0" max="1" value={Number((form.pctSugeridaEntrada ?? 0.02) * 100).toFixed(2)} onChange={v => set('pctSugeridaEntrada', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="fatorMG1" label="Fator MG1" desc="Multiplicador do valor ENTR para calcular MG1" type="number" step="0.1" min="1" value={form.fatorMG1 ?? 2} onChange={v => set('fatorMG1', v)} suffix="×" />
-      <ConfigField id="fatorMG2" label="Fator MG2" desc="Multiplicador do valor MG1 para calcular MG2" type="number" step="0.1" min="1" value={form.fatorMG2 ?? 2} onChange={v => set('fatorMG2', v)} suffix="×" />
-      <ConfigField id="maxCiclosPorDia" label="Máx. Ciclos por Dia" desc="Limite comportamental de ciclos diários" type="number" step="1" min="1" value={form.maxCiclosPorDia ?? 3} onChange={v => set('maxCiclosPorDia', v)} />
-      <ConfigField id="maxEntradasPorCiclo" label="Máx. Entradas por Ciclo" desc="Entradas máximas quando MG2 está habilitado" type="number" step="1" min="2" max="3" value={form.maxEntradasPorCiclo ?? 3} onChange={v => set('maxEntradasPorCiclo', v)} />
-      <ConfigField id="mg2Habilitado" label="MG2 Habilitado" desc="Permite o terceiro nível de Martingale" type="boolean" value={form.mg2Habilitado ?? false} onChange={v => set('mg2Habilitado', v)} />
+      <ConfigField id="metaIdealPct"        label="Meta Ideal (%)"
+        desc="Percentual mínimo de ganho para considerar encerrar o dia."
+        type="number" step="0.001" min="0" max="1"
+        value={Number((form.metaIdealPct ?? 0.02) * 100).toFixed(2)}
+        onChange={v => set('metaIdealPct', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="metaMaximaPct"       label="Meta Máxima (%)"
+        desc="Percentual bônus — não obrigatório. Encerrar ao atingir!"
+        type="number" step="0.001" min="0" max="1"
+        value={Number((form.metaMaximaPct ?? 0.03) * 100).toFixed(2)}
+        onChange={v => set('metaMaximaPct', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="stopDiarioPct"       label="Stop Diário (%)"
+        desc="Percentual máximo de perda no dia."
+        type="number" step="0.001" min="0" max="1"
+        value={Number((form.stopDiarioPct ?? 0.06) * 100).toFixed(2)}
+        onChange={v => set('stopDiarioPct', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="riscoMaxCicloPct"    label="Risco Máximo por Ciclo (%)"
+        desc="Percentual do capital comprometido no ciclo."
+        type="number" step="0.001" min="0" max="1"
+        value={Number((form.riscoMaxCicloPct ?? 0.06) * 100).toFixed(2)}
+        onChange={v => set('riscoMaxCicloPct', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="pctSugeridaEntrada"  label="% Sugerida de Entrada"
+        desc="Base para calcular o valor sugerido de entrada (ENTR)."
+        type="number" step="0.001" min="0" max="1"
+        value={Number((form.pctSugeridaEntrada ?? 0.02) * 100).toFixed(2)}
+        onChange={v => set('pctSugeridaEntrada', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="fatorMG1"            label="Fator MG1"
+        desc="Fator multiplicador para calcular MG1 (a partir do valor de entrada)."
+        type="number" step="0.1" min="1"
+        value={form.fatorMG1 ?? 2}
+        onChange={v => set('fatorMG1', v)} suffix="×" />
+
+      <ConfigField id="fatorMG2"            label="Fator MG2"
+        desc="Fator multiplicador para calcular MG2 (a partir do valor de MG1)."
+        type="number" step="0.1" min="1"
+        value={form.fatorMG2 ?? 2}
+        onChange={v => set('fatorMG2', v)} suffix="×" />
+
+      <ConfigField id="maxCiclosPorDia"     label="Limite de Ciclos por Dia"
+        desc="Limite comportamental de ciclos diários."
+        type="number" step="1" min="1"
+        value={form.maxCiclosPorDia ?? 3}
+        onChange={v => set('maxCiclosPorDia', v)} />
+
+      <ConfigField id="maxEntradasPorCiclo" label="Máx. de Entradas por Ciclo"
+        desc="Máximo de entradas por ciclo (quando MG2 está habilitado)."
+        type="number" step="1" min="2" max="3"
+        value={form.maxEntradasPorCiclo ?? 3}
+        onChange={v => set('maxEntradasPorCiclo', v)} />
+
+      <ConfigField id="mg2Habilitado"       label="MG2 Habilitado"
+        desc="Permite fazer o segundo Martingale."
+        type="boolean"
+        value={form.mg2Habilitado ?? false}
+        onChange={v => set('mg2Habilitado', v)} />
 
       <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
@@ -114,31 +160,137 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
 
 // ─── Aba Financeiro ───────────────────────────────────────────
 function TabFinanceiro({ form, set, onSave, saving, saved }: {
-  form: Partial<Configuration>
-  set: (k: keyof Configuration, v: string | boolean) => void
-  onSave: () => void
-  saving: boolean
-  saved: boolean
+  form: Partial<Configuration>; set: (k: keyof Configuration, v: string | boolean) => void
+  onSave: () => void; saving: boolean; saved: boolean
 }) {
+  const mesesOpcoes = gerarOpcoesMeses(24)
+
   return (
     <div>
       <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Parâmetros Financeiros</h3>
       <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Payout, câmbio e planejamento financeiro.</p>
 
-      <ConfigField id="payout" label="Payout da Corretora (%)" desc="Percentual de retorno sobre ganhos" type="number" step="0.01" min="0" max="1" value={Number((form.payout ?? 0.9) * 100).toFixed(0)} onChange={v => set('payout', String(Number(v) / 100))} suffix="%" />
+      <ConfigField id="payout" label="Payout da Corretora (%)"
+        desc="Percentual de retorno sobre ganhos."
+        type="number" step="0.01" min="0" max="1"
+        value={Number((form.payout ?? 0.9) * 100).toFixed(0)}
+        onChange={v => set('payout', String(Number(v) / 100))} suffix="%" />
 
+      {/* Câmbio */}
       <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
       <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Câmbio</div>
 
-      <ConfigField id="cambioCompra" label="Câmbio Compra (Depósitos)" desc="Taxa aplicada na conversão de R$ para US$ em depósitos" type="number" step="0.01" min="0" value={form.cambioCompra ?? 5.2} onChange={v => set('cambioCompra', v)} suffix="R$/US$" />
-      <ConfigField id="cambioVenda" label="Câmbio Venda (Saques)" desc="Taxa aplicada na conversão de US$ para R$ em saques" type="number" step="0.01" min="0" value={form.cambioVenda ?? 4.8} onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
+      <ConfigField id="cambioCompra" label="Câmbio Compra (Depósitos)"
+        desc="Taxa aplicada na conversão de R$ para US$ em depósitos."
+        type="number" step="0.01" min="0"
+        value={form.cambioCompra ?? 5.2}
+        onChange={v => set('cambioCompra', v)} suffix="R$/US$" />
 
+      <ConfigField id="cambioVenda" label="Câmbio Venda (Saques)"
+        desc="Taxa aplicada na conversão de US$ para R$ em saques."
+        type="number" step="0.01" min="0"
+        value={form.cambioVenda ?? 4.8}
+        onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
+
+      {/* Planejamento de Aporte */}
       <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Planejamento</div>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>
+        Planejamento de Aporte
+      </div>
 
-      <ConfigField id="aporteJunho" label="Aporte Planejado (Junho)" desc="Valor em US$ a ser aportado em junho" type="number" step="0.01" min="0" value={form.aporteJunho ?? ''} onChange={v => set('aporteJunho', v)} suffix="US$" />
-      <ConfigField id="saqueMinimo" label="Saque Mínimo Desejado" desc="Valor mínimo de saque a partir do mês configurado" type="number" step="0.01" min="0" value={form.saqueMinimo ?? ''} onChange={v => set('saqueMinimo', v)} suffix="US$" />
-      <ConfigField id="saqueMaximo" label="Saque Máximo Desejado" desc="Valor máximo de saque desejado" type="number" step="0.01" min="0" value={form.saqueMaximo ?? ''} onChange={v => set('saqueMaximo', v)} suffix="US$" />
+      {/* Mês e Valor do aporte em linha */}
+      <div style={{ padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+          Aporte Planejado
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+          Informe o mês previsto e o valor do aporte. Será usado na projeção anual.
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: '0 0 auto' }}>
+            <label className="label" htmlFor="aporteMes" style={{ marginBottom: '0.3rem' }}>Mês do Aporte</label>
+            <select id="aporteMes" className="input" style={{ width: 160 }}
+              value={form.aporteMes ?? ''}
+              onChange={e => set('aporteMes', e.target.value)}>
+              <option value="">— Selecione —</option>
+              {mesesOpcoes.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: '0 0 auto' }}>
+            <label className="label" htmlFor="aporteValor" style={{ marginBottom: '0.3rem' }}>Valor (US$)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input id="aporteValor" className="input" type="number" step="0.01" min="0"
+                placeholder="0.00" style={{ width: 160 }}
+                value={form.aporteValor ?? ''}
+                onChange={e => set('aporteValor', e.target.value)} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>US$</span>
+            </div>
+          </div>
+        </div>
+        {form.aporteMes && form.aporteValor ? (
+          <div style={{ marginTop: '0.625rem', fontSize: '0.78rem', color: 'var(--accent-blue)' }}>
+            ✓ Aporte de US$ {Number(form.aporteValor).toFixed(2)} previsto para {mesParaLabel(form.aporteMes)}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Planejamento de Saques */}
+      <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>
+        Planejamento de Saques
+      </div>
+
+      <div style={{ padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+          Faixa de Saque Desejada
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+          Informe o mês que pretende começar a sacar e a faixa de valores desejada.
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+          <div>
+            <label className="label" htmlFor="saquesMesInicio" style={{ marginBottom: '0.3rem' }}>Mês de Início dos Saques</label>
+            <select id="saquesMesInicio" className="input" style={{ width: 180 }}
+              value={form.saquesMesInicio ?? ''}
+              onChange={e => set('saquesMesInicio', e.target.value)}>
+              <option value="">— Selecione —</option>
+              {mesesOpcoes.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <label className="label" htmlFor="saqueMinimo" style={{ marginBottom: '0.3rem' }}>Saque Mínimo (US$)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input id="saqueMinimo" className="input" type="number" step="0.01" min="0"
+                placeholder="0.00" style={{ width: 150 }}
+                value={form.saqueMinimo ?? ''}
+                onChange={e => set('saqueMinimo', e.target.value)} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>US$</span>
+            </div>
+          </div>
+          <div>
+            <label className="label" htmlFor="saqueMaximo" style={{ marginBottom: '0.3rem' }}>Saque Máximo (US$)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input id="saqueMaximo" className="input" type="number" step="0.01" min="0"
+                placeholder="0.00" style={{ width: 150 }}
+                value={form.saqueMaximo ?? ''}
+                onChange={e => set('saqueMaximo', e.target.value)} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>US$</span>
+            </div>
+          </div>
+        </div>
+        {form.saquesMesInicio && (
+          <div style={{ marginTop: '0.625rem', fontSize: '0.78rem', color: 'var(--accent-win)' }}>
+            ✓ Saques previstos a partir de {mesParaLabel(form.saquesMesInicio)}
+            {form.saqueMinimo ? ` · Faixa: US$ ${Number(form.saqueMinimo).toFixed(2)}${form.saqueMaximo ? ` – US$ ${Number(form.saqueMaximo).toFixed(2)}` : '+'}` : ''}
+          </div>
+        )}
+      </div>
 
       <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
@@ -147,11 +299,8 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
 
 // ─── Aba Projeção ─────────────────────────────────────────────
 function TabProjecao({ form, set, onSave, saving, saved }: {
-  form: Partial<Configuration>
-  set: (k: keyof Configuration, v: string | boolean) => void
-  onSave: () => void
-  saving: boolean
-  saved: boolean
+  form: Partial<Configuration>; set: (k: keyof Configuration, v: string | boolean) => void
+  onSave: () => void; saving: boolean; saved: boolean
 }) {
   return (
     <div>
@@ -160,7 +309,7 @@ function TabProjecao({ form, set, onSave, saving, saved }: {
         Retorno mensal estimado para cada cenário. Usado no módulo de Projeção Anual.
       </p>
 
-      {/* Preview visual dos cenários */}
+      {/* Preview visual */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem', marginBottom: '1.5rem' }}>
         {[
           { key: 'retornoConservador' as keyof Configuration, label: 'Conservador', color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
@@ -177,9 +326,20 @@ function TabProjecao({ form, set, onSave, saving, saved }: {
         ))}
       </div>
 
-      <ConfigField id="retornoConservador" label="Retorno Conservador (% ao mês)" desc="Cenário mais pessimista" type="number" step="1" min="0" max="200" value={Number((form.retornoConservador ?? 0.2) * 100).toFixed(0)} onChange={v => set('retornoConservador', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="retornoRealista" label="Retorno Realista (% ao mês)" desc="Cenário esperado" type="number" step="1" min="0" max="200" value={Number((form.retornoRealista ?? 0.4) * 100).toFixed(0)} onChange={v => set('retornoRealista', String(Number(v) / 100))} suffix="%" />
-      <ConfigField id="retornoAgressivo" label="Retorno Agressivo (% ao mês)" desc="Cenário otimista" type="number" step="1" min="0" max="200" value={Number((form.retornoAgressivo ?? 0.6) * 100).toFixed(0)} onChange={v => set('retornoAgressivo', String(Number(v) / 100))} suffix="%" />
+      <ConfigField id="retornoConservador" label="Retorno Conservador (% ao mês)"
+        desc="Cenário mais pessimista" type="number" step="1" min="0" max="200"
+        value={Number((form.retornoConservador ?? 0.2) * 100).toFixed(0)}
+        onChange={v => set('retornoConservador', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="retornoRealista" label="Retorno Realista (% ao mês)"
+        desc="Cenário esperado" type="number" step="1" min="0" max="200"
+        value={Number((form.retornoRealista ?? 0.4) * 100).toFixed(0)}
+        onChange={v => set('retornoRealista', String(Number(v) / 100))} suffix="%" />
+
+      <ConfigField id="retornoAgressivo" label="Retorno Agressivo (% ao mês)"
+        desc="Cenário otimista" type="number" step="1" min="0" max="200"
+        value={Number((form.retornoAgressivo ?? 0.6) * 100).toFixed(0)}
+        onChange={v => set('retornoAgressivo', String(Number(v) / 100))} suffix="%" />
 
       <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
@@ -232,11 +392,8 @@ function TabMotivos() {
 
   const handleToggle = async (m: MotivoEntrada) => {
     try {
-      if (m.ativo) {
-        await api.delete(`/motivos/${m.id}`)
-      } else {
-        await api.post(`/motivos/${m.id}/reativar`)
-      }
+      if (m.ativo) await api.delete(`/motivos/${m.id}`)
+      else await api.post(`/motivos/${m.id}/reativar`)
       carregar()
     } catch { setError('Erro ao alterar motivo') }
   }
@@ -248,15 +405,9 @@ function TabMotivos() {
         Adicione, edite e desative motivos. Motivos desativados são preservados no histórico.
       </p>
 
-      {/* Form adicionar */}
       <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1.5rem' }}>
-        <input
-          className="input"
-          placeholder="Nome do novo motivo..."
-          value={novoNome}
-          onChange={e => setNovoNome(e.target.value)}
-          id="novo-motivo-input"
-        />
+        <input className="input" placeholder="Nome do novo motivo..."
+          value={novoNome} onChange={e => setNovoNome(e.target.value)} id="novo-motivo-input" />
         <button type="submit" className="btn btn-primary" disabled={saving || !novoNome.trim()} style={{ whiteSpace: 'nowrap' }}>
           {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
         </button>
@@ -275,32 +426,21 @@ function TabMotivos() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {motivos.map(m => (
-            <div
-              key={m.id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-                borderRadius: '0.625rem', border: '1px solid var(--border)',
-                background: m.ativo ? 'var(--bg-card)' : 'var(--bg-surface)',
-                opacity: m.ativo ? 1 : 0.6, transition: 'all 0.15s',
-              }}
-            >
+            <div key={m.id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+              borderRadius: '0.625rem', border: '1px solid var(--border)',
+              background: m.ativo ? 'var(--bg-card)' : 'var(--bg-surface)',
+              opacity: m.ativo ? 1 : 0.6, transition: 'all 0.15s',
+            }}>
               <div style={{ flex: 1 }}>
                 {editandoId === m.id ? (
-                  <input
-                    className="input"
-                    value={editandoNome}
-                    onChange={e => setEditandoNome(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleEditar(m.id)}
-                    autoFocus
-                    style={{ maxWidth: 300 }}
-                  />
+                  <input className="input" value={editandoNome} onChange={e => setEditandoNome(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleEditar(m.id)} autoFocus style={{ maxWidth: 300 }} />
                 ) : (
                   <span style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{m.nome}</span>
                 )}
               </div>
-              {!m.ativo && (
-                <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>Inativo</span>
-              )}
+              {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>Inativo</span>}
               <div style={{ display: 'flex', gap: '0.375rem' }}>
                 {editandoId === m.id ? (
                   <>
@@ -313,20 +453,12 @@ function TabMotivos() {
                   </>
                 ) : (
                   <>
-                    <button
-                      className="btn btn-ghost"
-                      style={{ padding: '0.3rem 0.5rem' }}
-                      onClick={() => { setEditandoId(m.id); setEditandoNome(m.nome) }}
-                      title="Editar"
-                    >
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => { setEditandoId(m.id); setEditandoNome(m.nome) }} title="Editar">
                       <Pencil size={13} />
                     </button>
-                    <button
-                      className="btn btn-ghost"
-                      style={{ padding: '0.3rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
-                      onClick={() => handleToggle(m)}
-                      title={m.ativo ? 'Desativar' : 'Reativar'}
-                    >
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
+                      onClick={() => handleToggle(m)} title={m.ativo ? 'Desativar' : 'Reativar'}>
                       {m.ativo ? <EyeOff size={13} /> : <Eye size={13} />}
                     </button>
                   </>
@@ -344,20 +476,11 @@ function TabMotivos() {
 function SaveButton({ onSave, saving, saved }: { onSave: () => void; saving: boolean; saved: boolean }) {
   return (
     <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
-      <button
-        className={`btn ${saved ? 'btn-success' : 'btn-primary'}`}
-        onClick={onSave}
-        disabled={saving}
-        style={{ minWidth: 140 }}
-        id="btn-salvar-config"
-      >
-        {saving ? (
-          <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</>
-        ) : saved ? (
-          <><Check size={14} /> Salvo!</>
-        ) : (
-          <><Save size={14} /> Salvar</>
-        )}
+      <button className={`btn ${saved ? 'btn-success' : 'btn-primary'}`} onClick={onSave}
+        disabled={saving} style={{ minWidth: 140 }} id="btn-salvar-config">
+        {saving ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</>
+          : saved ? <><Check size={14} /> Salvo!</>
+          : <><Save size={14} /> Salvar</>}
       </button>
     </div>
   )
@@ -376,6 +499,10 @@ export default function Configuracoes() {
 
   const setField = (key: keyof Configuration, value: string | boolean) => {
     setForm(prev => {
+      // Campos de string (mês): guardar como string
+      if (key === 'aporteMes' || key === 'saquesMesInicio') {
+        return { ...prev, [key]: value === '' ? null : value }
+      }
       const parsed = typeof value === 'boolean' ? value : isNaN(Number(value)) ? value : Number(value)
       return { ...prev, [key]: parsed }
     })
@@ -388,9 +515,8 @@ export default function Configuracoes() {
       await updateConfig(form)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
-    } catch {
-      // erro silencioso — pode adicionar toast futuramente
-    } finally { setSaving(false) }
+    } catch { /* toast futuro */ }
+    finally { setSaving(false) }
   }
 
   if (!config) {
@@ -405,7 +531,6 @@ export default function Configuracoes() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: 760 }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Settings size={18} style={{ color: 'var(--accent-blue)' }} />
@@ -417,27 +542,22 @@ export default function Configuracoes() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)' }}>
         {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.625rem 1rem', borderRadius: '0.5rem 0.5rem 0 0',
-              border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500,
-              transition: 'all 0.15s', background: 'transparent',
-              color: activeTab === key ? 'var(--accent-blue)' : 'var(--text-secondary)',
-              borderBottom: activeTab === key ? '2px solid var(--accent-blue)' : '2px solid transparent',
-              marginBottom: '-1px',
-            }}
-          >
+          <button key={key} onClick={() => setActiveTab(key)} style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.625rem 1rem', borderRadius: '0.5rem 0.5rem 0 0',
+            border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500,
+            transition: 'all 0.15s', background: 'transparent',
+            color: activeTab === key ? 'var(--accent-blue)' : 'var(--text-secondary)',
+            borderBottom: activeTab === key ? '2px solid var(--accent-blue)' : '2px solid transparent',
+            marginBottom: '-1px',
+          }}>
             <Icon size={14} />{label}
           </button>
         ))}
       </div>
 
-      {/* Conteúdo da aba */}
       <div className="card" style={{ padding: '1.5rem' }}>
         {activeTab === 'estrategia' && <TabEstrategia {...tabProps} />}
         {activeTab === 'financeiro' && <TabFinanceiro {...tabProps} />}
