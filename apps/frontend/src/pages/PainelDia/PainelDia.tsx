@@ -81,17 +81,22 @@ function KpiCard({
 // ─── Modal: Iniciar Dia ───────────────────────────────────────
 function IniciarDiaModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { criarDia } = usePainelStore()
+
+  const hojeStr = new Date().toISOString().split('T')[0]
+  const [data, setData] = useState(hojeStr)
   const [capital, setCapital] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const isRetroativo = data < hojeStr
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const val = parseFloat(capital.replace(',', '.'))
-    if (isNaN(val) || val <= 0) { setError('Informe um capital válido'); return }
+    if (isNaN(val) || val <= 0) { setError('Informe um capital válido.'); return }
     setLoading(true)
     try {
-      await criarDia(val)
+      await criarDia(val, data)
       onCreated()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
@@ -101,17 +106,41 @@ function IniciarDiaModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Iniciar Novo Dia</h2>
+            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
+              {isRetroativo ? 'Registrar Dia Anterior' : 'Iniciar Novo Dia'}
+            </h2>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+              {isRetroativo
+                ? 'Inserção retroativa de operações passadas'
+                : new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
             </p>
           </div>
           <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={onClose}><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Data */}
+          <div>
+            <label className="label" htmlFor="dia-data">Data</label>
+            <input
+              id="dia-data"
+              className="input"
+              type="date"
+              value={data}
+              max={hojeStr}
+              onChange={e => setData(e.target.value)}
+              required
+            />
+            {isRetroativo && (
+              <div style={{ marginTop: '0.4rem', padding: '0.4rem 0.75rem', borderRadius: '0.4rem', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontSize: '0.78rem' }}>
+                ⚠ Dia retroativo — você poderá inserir as operações manualmente após criá-lo.
+              </div>
+            )}
+          </div>
+
+          {/* Capital */}
           <div>
             <label className="label" htmlFor="capital-input">Capital Inicial do Dia (US$)</label>
             <input
@@ -125,12 +154,15 @@ function IniciarDiaModal({ onClose, onCreated }: { onClose: () => void; onCreate
               onChange={e => setCapital(e.target.value)}
               autoFocus
               required
-              style={{ fontSize: '1.25rem', padding: '0.75rem' }}
+              style={{ fontSize: '1.15rem', padding: '0.75rem' }}
             />
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-              Informe o capital disponível na sua conta para hoje.
+              {isRetroativo
+                ? 'Capital que você tinha disponível neste dia.'
+                : 'Capital disponível na sua conta hoje.'}
             </p>
           </div>
+
           {error && (
             <div style={{ padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>
               {error}
@@ -139,7 +171,9 @@ function IniciarDiaModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
             <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
-              {loading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Criando...</> : 'Iniciar Dia'}
+              {loading
+                ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Criando...</>
+                : isRetroativo ? 'Registrar Dia' : 'Iniciar Dia'}
             </button>
           </div>
         </form>

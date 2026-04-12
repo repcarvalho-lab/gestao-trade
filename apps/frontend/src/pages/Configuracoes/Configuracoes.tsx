@@ -327,17 +327,17 @@ function TabProjecao({ form, set, onSave, saving, saved }: {
       </div>
 
       <ConfigField id="retornoConservador" label="Retorno Conservador (% ao mês)"
-        desc="Cenário mais pessimista" type="number" step="1" min="0" max="200"
+        desc="Cenário mais pessimista." type="number" step="1" min="0" max="200"
         value={Number((form.retornoConservador ?? 0.2) * 100).toFixed(0)}
         onChange={v => set('retornoConservador', String(Number(v) / 100))} suffix="%" />
 
       <ConfigField id="retornoRealista" label="Retorno Realista (% ao mês)"
-        desc="Cenário esperado" type="number" step="1" min="0" max="200"
+        desc="Cenário esperado." type="number" step="1" min="0" max="200"
         value={Number((form.retornoRealista ?? 0.4) * 100).toFixed(0)}
         onChange={v => set('retornoRealista', String(Number(v) / 100))} suffix="%" />
 
       <ConfigField id="retornoAgressivo" label="Retorno Agressivo (% ao mês)"
-        desc="Cenário otimista" type="number" step="1" min="0" max="200"
+        desc="Cenário otimista." type="number" step="1" min="0" max="200"
         value={Number((form.retornoAgressivo ?? 0.6) * 100).toFixed(0)}
         onChange={v => set('retornoAgressivo', String(Number(v) / 100))} suffix="%" />
 

@@ -14,6 +14,7 @@ export async function criarDia(req: Request, res: Response) {
   const dia = await tradingDayService.criarDia(
     req.user!.userId,
     req.body.capitalInicial,
+    req.body.data,         // "YYYY-MM-DD" — opcional
   )
   res.status(201).json(dia)
 }

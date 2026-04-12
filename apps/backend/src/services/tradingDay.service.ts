@@ -13,37 +13,47 @@ export async function getDiaAberto(userId: string) {
   })
 }
 
-export async function criarDia(userId: string, capitalInicialOverride?: number) {
+export async function criarDia(userId: string, capitalInicialOverride?: number, dataParam?: string) {
+  // Resolve a data: usa a fornecida ou hoje
+  const dataEscolhida = dataParam ? new Date(`${dataParam}T00:00:00`) : new Date()
+  dataEscolhida.setHours(0, 0, 0, 0)
+
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
+  const isRetroativo = dataEscolhida < hoje
 
-  // Verifica se já existe dia aberto
+  // Verifica se já existe dia aberto (bloqueia criação se tiver um aberto)
   const existente = await prisma.tradingDay.findFirst({
     where: { userId, isClosed: false },
   })
-  if (existente) throw new AppError('Já existe um dia em aberto', 409)
+  if (existente) throw new AppError('Já existe um dia em aberto. Feche-o antes de criar outro.', 409)
 
-  // Verifica se já existe trading day para hoje
+  // Verifica se já existe day para a data escolhida
   const jaExiste = await prisma.tradingDay.findFirst({
-    where: { userId, date: hoje },
+    where: { userId, date: dataEscolhida },
   })
-  if (jaExiste) throw new AppError('Já existe um dia registrado para hoje', 409)
+  if (jaExiste) throw new AppError(
+    isRetroativo
+      ? `Já existe um dia registrado para ${dataEscolhida.toLocaleDateString('pt-BR')}.`
+      : 'Já existe um dia registrado para hoje.',
+    409,
+  )
 
-  // Carry-over do dia anterior
+  // Carry-over: busca o dia fechado mais recente ANTES da data escolhida
   const ultimoDia = await prisma.tradingDay.findFirst({
-    where: { userId, isClosed: true },
+    where: { userId, isClosed: true, date: { lt: dataEscolhida } },
     orderBy: { date: 'desc' },
   })
 
   const capitalInicial = capitalInicialOverride ?? ultimoDia?.capitalFinal ?? 0
   if (!capitalInicial && !capitalInicialOverride) {
-    throw new AppError('Informe o capital inicial para o primeiro dia', 400)
+    throw new AppError('Informe o capital inicial para este dia.', 400)
   }
 
   return prisma.tradingDay.create({
     data: {
       userId,
-      date: hoje,
+      date: dataEscolhida,
       capitalInicial,
       capitalInicialReal: capitalInicial,
       status: 'OPERANDO',
@@ -51,6 +61,7 @@ export async function criarDia(userId: string, capitalInicialOverride?: number) 
     include: { trades: true, ciclos: true },
   })
 }
+
 
 export async function atualizarDeposito(tradingDayId: string, userId: string, deposito: number) {
   const dia = await prisma.tradingDay.findFirst({ where: { id: tradingDayId, userId, isClosed: false } })

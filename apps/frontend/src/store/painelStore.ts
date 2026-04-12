@@ -54,7 +54,7 @@ interface PainelState {
   diaAberto: TradingDay | null
   isLoading: boolean
   fetchDiaAberto: () => Promise<void>
-  criarDia: (capitalInicial?: number) => Promise<void>
+  criarDia: (capitalInicial?: number, data?: string) => Promise<void>
   atualizarDeposito: (deposito: number) => Promise<void>
   criarTrade: (input: {
     tipo: TradeType
@@ -84,9 +84,9 @@ export const usePainelStore = create<PainelState>((set, get) => ({
     }
   },
 
-  criarDia: async (capitalInicial) => {
-    const { data } = await api.post('/trading-days', { capitalInicial })
-    set({ diaAberto: data })
+  criarDia: async (capitalInicial, data) => {
+    const { data: dia } = await api.post('/trading-days', { capitalInicial, data })
+    set({ diaAberto: dia })
   },
 
   atualizarDeposito: async (deposito) => {
