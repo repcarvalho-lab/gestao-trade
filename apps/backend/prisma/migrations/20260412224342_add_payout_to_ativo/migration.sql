@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Ativo" ADD COLUMN     "payout" DOUBLE PRECISION NOT NULL DEFAULT 0.85;

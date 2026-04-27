@@ -34,6 +34,7 @@ export async function fecharDia(req: Request, res: Response) {
     req.user!.userId,
     req.body.emocional,
     req.body.seguiuSetup,
+    req.body.errosDia ?? [],
   )
   res.json(dia)
 }
@@ -46,4 +47,14 @@ export async function listarDias(req: Request, res: Response) {
 export async function getDia(req: Request, res: Response) {
   const dia = await tradingDayService.getDia(String(req.params.id), req.user!.userId)
   res.json(dia)
+}
+
+export async function reabrirDia(req: Request, res: Response) {
+  const dia = await tradingDayService.reabrirDia(String(req.params.id), req.user!.userId)
+  res.json(dia)
+}
+
+export async function excluirDia(req: Request, res: Response) {
+  await tradingDayService.excluirDia(String(req.params.id), req.user!.userId)
+  res.status(204).send()
 }

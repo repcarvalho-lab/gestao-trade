@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "DayStatus" ADD VALUE 'META_NAO_ATINGIDA';

@@ -7,7 +7,10 @@ export async function getDiaAberto(userId: string) {
   return prisma.tradingDay.findFirst({
     where: { userId, isClosed: false },
     include: {
-      trades: { orderBy: { horario: 'asc' } },
+      trades: {
+        orderBy: { horario: 'asc' },
+        include: { ciclo: true, motivo: true },
+      },
       ciclos: { orderBy: { numero: 'asc' } },
     },
   })
@@ -45,17 +48,54 @@ export async function criarDia(userId: string, capitalInicialOverride?: number, 
     orderBy: { date: 'desc' },
   })
 
-  const capitalInicial = capitalInicialOverride ?? ultimoDia?.capitalFinal ?? 0
+  // 1. Busca todos depósitos anteriores à data escolhida, mas APÓS o ultimo dia
+  const gtDate = ultimoDia ? ultimoDia.date : undefined
+  const movsAnteriores = await prisma.depositoSaque.findMany({
+    where: {
+      userId,
+      data: {
+        ...(gtDate ? { gt: gtDate } : {}),
+        lt: dataEscolhida,
+      },
+    },
+  })
+
+  const netAnteriores = movsAnteriores.reduce(
+    (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD),
+    0
+  )
+
+  const capitalInicial = capitalInicialOverride ?? ((ultimoDia?.capitalFinal ?? 0) + netAnteriores)
   if (!capitalInicial && !capitalInicialOverride) {
     throw new AppError('Informe o capital inicial para este dia.', 400)
   }
+
+  // 2. Busca depósitos que foram realizados EXACTAMENTE no dia de hoje (antes do dia ser criado)
+  const dayEnd = new Date(dataEscolhida)
+  dayEnd.setHours(23, 59, 59, 999)
+
+  const movsHoje = await prisma.depositoSaque.findMany({
+    where: {
+      userId,
+      data: {
+        gte: dataEscolhida,
+        lte: dayEnd,
+      },
+    },
+  })
+
+  const netHoje = movsHoje.reduce(
+    (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD),
+    0
+  )
 
   return prisma.tradingDay.create({
     data: {
       userId,
       date: dataEscolhida,
       capitalInicial,
-      capitalInicialReal: capitalInicial,
+      deposito: netHoje,
+      capitalInicialReal: capitalInicial + netHoje,
       status: 'OPERANDO',
     },
     include: { trades: true, ciclos: true },
@@ -99,6 +139,7 @@ export async function fecharDia(
   userId: string,
   emocional: string,
   seguiuSetup: boolean,
+  errosDia: string[] = [],
 ) {
   const dia = await prisma.tradingDay.findFirst({
     where: { id: tradingDayId, userId, isClosed: false },
@@ -113,6 +154,12 @@ export async function fecharDia(
   const capitalFinal = dia.capitalInicialReal + calc.resultadoDia
   const respeitouLimiteCiclos = calc.ciclosRealizados <= config.maxCiclosPorDia
 
+  // ATENCAO e OPERANDO ao fechar = Meta não atingida
+  const statusFinal =
+    calc.status === 'ATENCAO' || calc.status === 'OPERANDO'
+      ? 'META_NAO_ATINGIDA'
+      : calc.status
+
   const diafechado = await prisma.tradingDay.update({
     where: { id: tradingDayId },
     data: {
@@ -120,7 +167,7 @@ export async function fecharDia(
       capitalFinal,
       resultadoDia: calc.resultadoDia,
       rentabilidade: calc.rentabilidade,
-      status: calc.status,
+      status: statusFinal,
       win: calc.win,
       loss: calc.loss,
       numeroTrades: calc.numeroTrades,
@@ -129,6 +176,7 @@ export async function fecharDia(
       respeitouLimiteCiclos,
       emocional,
       seguiuSetup,
+      errosDia: { set: errosDia },
       usouMG2: dia.trades.some((t) => t.tipo === 'MG2'),
     },
   })
@@ -137,6 +185,58 @@ export async function fecharDia(
   await recalcularRelatorios(userId, diafechado.date)
 
   return diafechado
+}
+
+export async function reabrirDia(id: string, userId: string) {
+  // Garante que não haja outro dia aberto
+  const existeAberto = await prisma.tradingDay.findFirst({
+    where: { userId, isClosed: false },
+  })
+  if (existeAberto) throw new AppError('Já existe um dia em aberto. Feche-o antes de reabrir outro.', 409)
+
+  const dia = await prisma.tradingDay.findFirst({
+    where: { id, userId, isClosed: true },
+    include: { trades: true },
+  })
+  if (!dia) throw new AppError('Dia não encontrado ou já está aberto', 404)
+
+  const config = await prisma.configuration.findUnique({ where: { userId } })
+  if (!config) throw new AppError('Configurações não encontradas', 500)
+
+  // Recalcula o status real a partir dos trades (remove META_NAO_ATINGIDA)
+  const calc = recalcularDia(dia, dia.trades, config)
+
+  return prisma.tradingDay.update({
+    where: { id },
+    data: {
+      isClosed: false,
+      capitalFinal: null,
+      respeitouLimiteCiclos: null,
+      status: calc.status,
+      resultadoDia: calc.resultadoDia,
+      rentabilidade: calc.rentabilidade,
+      win: calc.win,
+      loss: calc.loss,
+      numeroTrades: calc.numeroTrades,
+      taxaAcerto: calc.taxaAcerto,
+      ciclosRealizados: calc.ciclosRealizados,
+    },
+    include: {
+      trades: { orderBy: { horario: 'asc' }, include: { ciclo: true, motivo: true } },
+      ciclos: { orderBy: { numero: 'asc' } },
+    },
+  })
+}
+
+export async function excluirDia(id: string, userId: string) {
+  const dia = await prisma.tradingDay.findFirst({
+    where: { id, userId },
+    include: { _count: { select: { trades: true } } },
+  })
+  if (!dia) throw new AppError('Dia não encontrado', 404)
+  if (dia._count.trades > 0)
+    throw new AppError('Só é possível excluir um dia sem operações registradas.', 400)
+  await prisma.tradingDay.delete({ where: { id } })
 }
 
 export async function listarDias(userId: string) {
@@ -155,7 +255,7 @@ export async function getDia(id: string, userId: string) {
     include: {
       trades: {
         orderBy: { horario: 'asc' },
-        include: { motivo: true },
+        include: { motivo: true, ciclo: true },
       },
       ciclos: { orderBy: { numero: 'asc' } },
     },

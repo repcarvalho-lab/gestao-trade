@@ -8,15 +8,18 @@ import {
   Settings,
   LogOut,
   Zap,
+  ClipboardList,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
 const navItems = [
-  { to: '/painel', icon: Zap, label: 'Painel do Dia' },
-  { to: '/controle-diario', icon: CalendarDays, label: 'Controle Diário' },
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/projecao', icon: LineChart, label: 'Projeção Anual' },
-  { to: '/movimentos', icon: ArrowLeftRight, label: 'Depósitos e Saques' },
+  { to: '/painel',              icon: Zap,            label: 'Painel do Dia' },
+  { to: '/relatorios',          icon: ClipboardList,  label: 'Relatórios' },
+  { to: '/dashboard',           icon: LayoutDashboard,label: 'Dashboard' },
+  { to: '/controle-diario',     icon: CalendarDays,   label: 'Controle Diário' },
+  { to: '/planejado-realizado', icon: TrendingUp,     label: 'Planejado x Realizado' },
+  { to: '/projecao',            icon: LineChart,      label: 'Projeção Anual' },
+  { to: '/movimentos',          icon: ArrowLeftRight, label: 'Depósitos e Saques' },
 ]
 
 export default function Sidebar() {

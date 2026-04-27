@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { catchAsync } from '../utils/catchAsync'
 import * as dashboardController from '../controllers/dashboard.controller'
 import * as relatoriosController from '../controllers/relatorios.controller'
 import * as projecaoController from '../controllers/projecao.controller'
@@ -11,5 +12,6 @@ router.get('/dashboard', dashboardController.getDashboard)
 router.get('/relatorios/semanal', relatoriosController.getSemanal)
 router.get('/relatorios/mensal', relatoriosController.getMensal)
 router.get('/projecao', projecaoController.getProjecao)
+router.get('/planejado-realizado', catchAsync(dashboardController.getPlanejadoRealizado))
 
 export default router

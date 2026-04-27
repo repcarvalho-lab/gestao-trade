@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { catchAsync } from '../utils/catchAsync'
 import * as motivosController from '../controllers/motivos.controller'
 import { authenticate } from '../middleware/auth'
 

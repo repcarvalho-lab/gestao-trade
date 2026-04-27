@@ -11,7 +11,8 @@ export async function criar(req: Request, res: Response) {
 }
 
 export async function listar(req: Request, res: Response) {
-  const movimentos = await movimentosService.listarMovimentos(req.user!.userId)
+  const data = typeof req.query.data === 'string' ? req.query.data : undefined
+  const movimentos = await movimentosService.listarMovimentos(req.user!.userId, data)
   res.json(movimentos)
 }
 

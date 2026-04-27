@@ -25,3 +25,17 @@ export async function listarTradesDoDia(req: Request, res: Response) {
   )
   res.json(trades)
 }
+
+export async function excluirTrade(req: Request, res: Response) {
+  await tradesService.excluirTrade(String(req.params.id), req.user!.userId)
+  res.status(204).send()
+}
+
+export async function editarTrade(req: Request, res: Response) {
+  const trade = await tradesService.editarTrade(
+    String(req.params.id),
+    req.user!.userId,
+    req.body,
+  )
+  res.json(trade)
+}

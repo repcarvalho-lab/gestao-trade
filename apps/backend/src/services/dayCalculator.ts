@@ -28,9 +28,9 @@ export function calcularValoresSugeridos(
   capitalInicialReal: number,
   config: Configuration,
 ): { valorENTR: number; valorMG1: number; valorMG2: number } {
-  const valorENTR = capitalInicialReal * config.pctSugeridaEntrada
-  const valorMG1 = valorENTR * config.fatorMG1
-  const valorMG2 = valorMG1 * config.fatorMG2
+  const valorENTR = Math.floor(capitalInicialReal * config.pctSugeridaEntrada)
+  const valorMG1  = Math.floor(valorENTR * config.fatorMG1)
+  const valorMG2  = Math.floor(valorMG1 * config.fatorMG2)
   return { valorENTR, valorMG1, valorMG2 }
 }
 
@@ -41,9 +41,9 @@ export function calcularValoresSugeridos(
 export function calcularResultadoTrade(
   valor: number,
   tradeStatus: 'WIN' | 'LOSS',
-  config: Configuration,
+  payout: number,
 ): number {
-  return tradeStatus === 'WIN' ? valor * config.payout : -valor
+  return tradeStatus === 'WIN' ? valor * payout : -valor
 }
 
 // ────────────────────────────────────────────────────────────
@@ -170,9 +170,9 @@ export interface MesProjecao {
   capitalComAporte: number
   retorno: number
   capitalBruto: number
-  saque: number
+  saquePlanejado: number   // o que o usuário planeja retirar (usado no cálculo)
+  saqueViavel: number     // informativo: máximo recomendado para retirar (= retorno do mês)
   capitalFinal: number
-  saqueViavel: boolean
 }
 
 export interface ProjecaoAnual {
@@ -214,9 +214,12 @@ function calcularCenario(
 
     const capitalComAporte = capital + aporte
     const capitalBruto = capitalComAporte * (1 + retornoMensal)
-    const saque = capitalBruto >= saquePlanejado ? saquePlanejado : 0
-    const capitalFinal = capitalBruto - saque
-    const saqueViavel = saquePlanejado === 0 || capitalBruto >= saquePlanejado
+
+    // Sempre aplica o saque planejado no cálculo (mesmo que deixe o capital cair)
+    const capitalFinal = capitalBruto - saquePlanejado
+
+    // Saque viável é informativo: o retorno gerado no mês (máximo recomendado sem tocar o principal)
+    const saqueViavel = Math.max(0, capitalBruto - capitalComAporte)
 
     resultado.push({
       mes,
@@ -225,9 +228,9 @@ function calcularCenario(
       capitalComAporte,
       retorno: retornoMensal,
       capitalBruto,
-      saque,
-      capitalFinal,
+      saquePlanejado,
       saqueViavel,
+      capitalFinal,
     })
 
     capital = capitalFinal

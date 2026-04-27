@@ -11,15 +11,29 @@ export async function getProjecao(req: Request, res: Response) {
     return
   }
 
-  // Capital atual: último dia fechado ou 0
-  const ultimoDia = await prisma.tradingDay.findFirst({
-    where: { userId, isClosed: true },
+  // Capital base = último dia fechado do mês anterior (= capital real no início do mês atual)
+  const agora = new Date()
+  const inicioMesAtual = new Date(agora.getFullYear(), agora.getMonth(), 1)
+
+  const ultimoDiaMesAnterior = await prisma.tradingDay.findFirst({
+    where: { userId, isClosed: true, date: { lt: inicioMesAtual } },
     orderBy: { date: 'desc' },
   })
-  const capitalAtual = ultimoDia?.capitalFinal ?? 0
+
+  // Fallback: se não há histórico anterior, usa o capitalInicialReal do primeiro dia do mês atual
+  const primeiroDiaMesAtual = !ultimoDiaMesAnterior
+    ? await prisma.tradingDay.findFirst({
+        where: { userId, isClosed: true, date: { gte: inicioMesAtual } },
+        orderBy: { date: 'asc' },
+      })
+    : null
+
+  const capitalAtual =
+    ultimoDiaMesAnterior?.capitalFinal ??
+    primeiroDiaMesAtual?.capitalInicialReal ??
+    0
 
   // Mês de início: mês atual
-  const agora = new Date()
   const mesInicio = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
 
   // Aportes planejados do banco (merged com query params opcionais)
@@ -34,9 +48,18 @@ export async function getProjecao(req: Request, res: Response) {
     Object.assign(aportesPorMes, override)
   }
 
-  const saquesPorMes: Record<string, number> = req.query.saques
-    ? JSON.parse(req.query.saques as string)
-    : {}
+  const saquesDb = await prisma.saquePlanejado.findMany({ where: { userId } })
+  const saquesPorMes: Record<string, number> = {}
+  
+  // Preenche saques por mês a partir da tabela SaquePlanejado
+  for (const s of saquesDb) {
+    saquesPorMes[s.mes] = s.valor
+  }
+
+  if (req.query.saques) {
+    const overrideSaques = JSON.parse(req.query.saques as string)
+    Object.assign(saquesPorMes, overrideSaques)
+  }
 
   const projecao = calcularProjecaoAnual({
     capitalAtual,
@@ -47,6 +70,6 @@ export async function getProjecao(req: Request, res: Response) {
     meses: 12,
   })
 
-  res.json({ capitalAtual, mesInicio, aportesPlanejados: aportesDb, projecao })
+  res.json({ capitalAtual, mesInicio, aportesPlanejados: aportesDb, saquesPlanejados: saquesDb, projecao })
 }
 

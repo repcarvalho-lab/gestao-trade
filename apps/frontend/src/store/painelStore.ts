@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import api from '../services/api'
 
-export type DayStatus = 'OPERANDO' | 'META_IDEAL' | 'META_MAXIMA' | 'ATENCAO' | 'STOP'
+export type DayStatus = 'OPERANDO' | 'META_IDEAL' | 'META_MAXIMA' | 'ATENCAO' | 'STOP' | 'META_NAO_ATINGIDA'
 export type TradeType = 'ENTR' | 'MG1' | 'MG2'
 export type TradeStatus = 'ABERTA' | 'WIN' | 'LOSS'
 export type CicloStatus = 'ABERTO' | 'FECHADO_WIN' | 'FECHADO_STOP' | 'FECHADO_MANUAL'
@@ -36,6 +36,9 @@ export interface TradingDay {
   taxaAcerto: number | null
   ciclosRealizados: number
   isClosed: boolean
+  emocional?: string | null
+  seguiuSetup?: boolean | null
+  errosDia?: string[]
   trades: Trade[]
   // Indicadores calculados (retornados pelo backend junto com o dia aberto)
   stopProximo?: boolean
@@ -63,8 +66,16 @@ interface PainelState {
     motivoId?: string
     motivoOutro?: string
   }) => Promise<Trade>
+  editarTrade: (tradeId: string, updates: {
+    ativo?: string
+    valor?: number
+    motivoId?: string | null
+    motivoOutro?: string | null
+  }) => Promise<void>
   marcarResultado: (tradeId: string, resultado: 'WIN' | 'LOSS') => Promise<void>
-  fecharDia: (emocional: string, seguiuSetup: boolean) => Promise<void>
+  excluirTrade: (tradeId: string) => Promise<void>
+  fecharDia: (emocional: string, seguiuSetup: boolean, errosDia?: string[]) => Promise<void>
+  excluirDia: () => Promise<void>
 }
 
 export const usePainelStore = create<PainelState>((set, get) => ({
@@ -103,21 +114,36 @@ export const usePainelStore = create<PainelState>((set, get) => ({
       ...input,
       tradingDayId: dia.id,
     })
-    // Recarrega o dia para ter indicadores atualizados
     get().fetchDiaAberto()
     return data
   },
 
-  marcarResultado: async (tradeId, resultado) => {
-    await api.patch(`/trades/${tradeId}/resultado`, { resultado })
-    // Recarrega o dia com indicadores recalculados
+  editarTrade: async (tradeId, updates) => {
+    await api.patch(`/trades/${tradeId}`, updates)
     await get().fetchDiaAberto()
   },
 
-  fecharDia: async (emocional, seguiuSetup) => {
+  marcarResultado: async (tradeId, resultado) => {
+    await api.patch(`/trades/${tradeId}/resultado`, { resultado })
+    await get().fetchDiaAberto()
+  },
+
+  excluirTrade: async (tradeId) => {
+    await api.delete(`/trades/${tradeId}`)
+    await get().fetchDiaAberto()
+  },
+
+  fecharDia: async (emocional, seguiuSetup, errosDia = []) => {
     const dia = get().diaAberto
     if (!dia) return
-    await api.post(`/trading-days/${dia.id}/fechar`, { emocional, seguiuSetup })
+    await api.post(`/trading-days/${dia.id}/fechar`, { emocional, seguiuSetup, errosDia })
+    set({ diaAberto: null })
+  },
+
+  excluirDia: async () => {
+    const dia = get().diaAberto
+    if (!dia) return
+    await api.delete(`/trading-days/${dia.id}`)
     set({ diaAberto: null })
   },
 }))

@@ -8,6 +8,8 @@ import Configuracoes from '../pages/Configuracoes/Configuracoes'
 import Dashboard from '../pages/Dashboard/Dashboard'
 import ProjecaoAnual from '../pages/ProjecaoAnual/ProjecaoAnual'
 import DepositosSaques from '../pages/DepositosSaques/DepositosSaques'
+import PlanejadoRealizado from '../pages/PlanejadoRealizado/PlanejadoRealizado'
+import Relatorios from '../pages/Relatorios/Relatorios'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -32,7 +34,9 @@ export default function AppRouter() {
           <Route path="controle-diario" element={<ControleDiario />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="projecao" element={<ProjecaoAnual />} />
+          <Route path="planejado-realizado" element={<PlanejadoRealizado />} />
           <Route path="movimentos" element={<DepositosSaques />} />
+          <Route path="relatorios" element={<Relatorios />} />
           <Route path="configuracoes" element={<Configuracoes />} />
         </Route>
         <Route path="*" element={<Navigate to="/painel" replace />} />

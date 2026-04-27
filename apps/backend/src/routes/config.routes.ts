@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { catchAsync } from '../utils/catchAsync'
 import * as configController from '../controllers/config.controller'
 import { authenticate, requireAdmin } from '../middleware/auth'
 

@@ -54,10 +54,12 @@ body {
 
 /* ── Utilitários de status ─────────────────────────────── */
 .status-operando    { color: var(--text-secondary); }
+.status-fechado     { color: var(--accent-blue); }
 .status-meta-ideal  { color: var(--accent-win); }
 .status-meta-maxima { color: #059669; }
-.status-atencao     { color: var(--accent-warn); }
-.status-stop        { color: var(--accent-loss); }
+.status-atencao          { color: var(--accent-warn); }
+.status-stop             { color: var(--accent-loss); }
+.status-meta-nao-atingida { color: #94a3b8; }
 
 /* ── Animação de pulso para STOP ──────────────────────── */
 @keyframes pulse-stop {

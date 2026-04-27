@@ -1,20 +1,26 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Save, Plus, Pencil, EyeOff, Eye, Loader2, Check, X, Settings,
-  TrendingUp, DollarSign, BarChart2, Tag,
+  TrendingUp, DollarSign, BarChart2, Tag, AlertTriangle, Trash2,
+  ChevronUp, ChevronDown,
 } from 'lucide-react'
 import { useConfigStore, type Configuration } from '../../store/configStore'
+import { useAnalyticsStore } from '../../store/analyticsStore'
 import api from '../../services/api'
+import { formatPct, formatUSD } from '../../lib/format'
 
 // ─── Tipos ────────────────────────────────────────────────────
 interface MotivoEntrada { id: string; nome: string; ativo: boolean }
-type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos'
+interface AtivoObj { id: string; nome: string; ativo: boolean; payout: number }
+type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos' | 'ativos' | 'erros'
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'estrategia', label: 'Estratégia',          icon: TrendingUp },
-  { key: 'financeiro', label: 'Financeiro',           icon: DollarSign },
-  { key: 'projecao',   label: 'Projeção',             icon: BarChart2 },
-  { key: 'motivos',    label: 'Motivos de Entrada',   icon: Tag },
+  { key: 'financeiro', label: 'Financeiro',          icon: DollarSign },
+  { key: 'projecao',   label: 'Projeção',            icon: BarChart2 },
+  { key: 'motivos',    label: 'Origem da Entrada',   icon: Tag },
+  { key: 'ativos',     label: 'Ativos Disponíveis',    icon: Tag },
+  { key: 'erros',      label: 'Tipos de Erro',        icon: AlertTriangle },
 ]
 
 // ─── Helpers de mês ───────────────────────────────────────────
@@ -84,74 +90,214 @@ function ConfigField({
 }
 
 // ─── Aba Estratégia ───────────────────────────────────────────
+function SecaoCard({ titulo, descricao, icon: Icon, children }: {
+  titulo: string; descricao?: string; icon: React.ElementType; children: React.ReactNode
+}) {
+  return (
+    <div style={{ border: '1px solid var(--border)', borderRadius: '0.75rem', overflow: 'hidden', marginBottom: '1.25rem' }}>
+      <div style={{ padding: '0.875rem 1.25rem', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+        <Icon size={15} style={{ color: 'var(--accent-blue)', flexShrink: 0 }} />
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{titulo}</div>
+          {descricao && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{descricao}</div>}
+        </div>
+      </div>
+      <div style={{ padding: '0 1.25rem', background: 'var(--bg-card)' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
 function TabEstrategia({ form, set, onSave, saving, saved }: {
   form: Partial<Configuration>; set: (k: keyof Configuration, v: string | boolean) => void
   onSave: () => void; saving: boolean; saved: boolean
 }) {
+  const { dashboardData, fetchDashboard } = useAnalyticsStore()
+  useEffect(() => { if (!dashboardData) fetchDashboard() }, [])
+  const banca = dashboardData?.indicadores?.ultimoCapital ?? null
+
   return (
     <div>
-      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Parâmetros de Estratégia</h3>
-      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Define metas, stops e estrutura de ciclos Martingale.</p>
+      <p style={{ margin: '0 0 1.5rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        Configure metas, gestão de risco e estrutura Martingale. As alterações afetam os cálculos do Painel do Dia.
+      </p>
 
-      <ConfigField id="metaIdealPct"        label="Meta Ideal (%)"
-        desc="Percentual mínimo de ganho para considerar encerrar o dia."
-        type="number" step="0.001" min="0" max="1"
-        value={Number((form.metaIdealPct ?? 0.02) * 100).toFixed(2)}
-        onChange={v => set('metaIdealPct', String(Number(v) / 100))} suffix="%" />
+      {/* Metas Diárias */}
+      <SecaoCard titulo="Metas Diárias" descricao="Percentuais de referência para encerramento do dia e limites comportamentais." icon={TrendingUp}>
+        <ConfigField id="metaIdealPct" label="Meta Ideal (%)"
+          desc="Ganho mínimo para considerar encerrar o dia."
+          type="number" step="0.001" min="0" max="1"
+          value={Number((form.metaIdealPct ?? 0.02) * 100).toFixed(2)}
+          onChange={v => set('metaIdealPct', String(Number(v) / 100))} suffix="%" />
+        <ConfigField id="metaMaximaPct" label="Meta Máxima (%)"
+          desc="Percentual bônus — encerrar obrigatoriamente ao atingir."
+          type="number" step="0.001" min="0" max="1"
+          value={Number((form.metaMaximaPct ?? 0.03) * 100).toFixed(2)}
+          onChange={v => set('metaMaximaPct', String(Number(v) / 100))} suffix="%" />
+        <ConfigField id="maxCiclosPorDia" label="Limite de Ciclos por Dia"
+          desc="Número máximo de ciclos permitidos em um único dia operacional."
+          type="number" step="1" min="1"
+          value={form.maxCiclosPorDia ?? 3}
+          onChange={v => set('maxCiclosPorDia', v)} />
+      </SecaoCard>
 
-      <ConfigField id="metaMaximaPct"       label="Meta Máxima (%)"
-        desc="Percentual bônus — não obrigatório. Encerrar ao atingir!"
-        type="number" step="0.001" min="0" max="1"
-        value={Number((form.metaMaximaPct ?? 0.03) * 100).toFixed(2)}
-        onChange={v => set('metaMaximaPct', String(Number(v) / 100))} suffix="%" />
+      {/* Gestão de Risco */}
+      <SecaoCard titulo="Gestão de Risco" descricao="Limites de perda e exposição de capital por operação e por dia." icon={AlertTriangle}>
+        <ConfigField id="stopDiarioPct" label="Stop Diário (%)"
+          desc="Perda máxima permitida no dia. Ao atingir, encerrar operações."
+          type="number" step="0.001" min="0" max="1"
+          value={Number((form.stopDiarioPct ?? 0.06) * 100).toFixed(2)}
+          onChange={v => {
+            set('stopDiarioPct', String(Number(v) / 100))
+            set('riscoMaxCicloPct', String(Number(v) / 100))
+          }} suffix="%" />
+        <ConfigField id="pctSugeridaEntrada" label="% Sugerida de Entrada (ENTR)"
+          desc="Base para calcular o valor sugerido na entrada inicial do ciclo."
+          type="number" step="0.001" min="0" max="1"
+          value={Number((form.pctSugeridaEntrada ?? 0.02) * 100).toFixed(2)}
+          onChange={v => set('pctSugeridaEntrada', String(Number(v) / 100))} suffix="%" />
 
-      <ConfigField id="stopDiarioPct"       label="Stop Diário (%)"
-        desc="Percentual máximo de perda no dia."
-        type="number" step="0.001" min="0" max="1"
-        value={Number((form.stopDiarioPct ?? 0.06) * 100).toFixed(2)}
-        onChange={v => set('stopDiarioPct', String(Number(v) / 100))} suffix="%" />
+        {/* Card unificado: percentuais + valores em dólar com base no stop */}
+        {(() => {
+          const risco  = form.stopDiarioPct ?? 0.06
+          const fMG1   = form.fatorMG1      ?? 2
+          const fMG2   = form.fatorMG2      ?? 2
+          const comMG2 = form.mg2Habilitado ?? false
+          const divisor = comMG2 ? 1 + fMG1 + fMG1 * fMG2 : 1 + fMG1
 
-      <ConfigField id="riscoMaxCicloPct"    label="Risco Máximo por Ciclo (%)"
-        desc="Percentual do capital comprometido no ciclo."
-        type="number" step="0.001" min="0" max="1"
-        value={Number((form.riscoMaxCicloPct ?? 0.06) * 100).toFixed(2)}
-        onChange={v => set('riscoMaxCicloPct', String(Number(v) / 100))} suffix="%" />
+          const entr = risco / divisor
+          const mg1  = entr * fMG1
+          const mg2  = comMG2 ? mg1 * fMG2 : null
 
-      <ConfigField id="pctSugeridaEntrada"  label="% Sugerida de Entrada"
-        desc="Base para calcular o valor sugerido de entrada (ENTR)."
-        type="number" step="0.001" min="0" max="1"
-        value={Number((form.pctSugeridaEntrada ?? 0.02) * 100).toFixed(2)}
-        onChange={v => set('pctSugeridaEntrada', String(Number(v) / 100))} suffix="%" />
+          const fmtPctCalc = (v: number) => `${(v * 100).toFixed(2)}%`
 
-      <ConfigField id="fatorMG1"            label="Fator MG1"
-        desc="Fator multiplicador para calcular MG1 (a partir do valor de entrada)."
-        type="number" step="0.1" min="1"
-        value={form.fatorMG1 ?? 2}
-        onChange={v => set('fatorMG1', v)} suffix="×" />
+          const temBanca   = banca != null && banca > 0
+          const entrVal    = temBanca ? Math.floor(banca! * entr)       : null
+          const mg1Val     = temBanca ? Math.floor(entrVal! * fMG1)     : null
+          const mg2Val     = temBanca && mg2 != null ? Math.floor(mg1Val! * fMG2) : null
+          const totalCiclo = temBanca ? (entrVal! + mg1Val! + (mg2Val ?? 0)) : null
+          const totalPct   = temBanca && totalCiclo != null ? totalCiclo / banca! : 0
 
-      <ConfigField id="fatorMG2"            label="Fator MG2"
-        desc="Fator multiplicador para calcular MG2 (a partir do valor de MG1)."
-        type="number" step="0.1" min="1"
-        value={form.fatorMG2 ?? 2}
-        onChange={v => set('fatorMG2', v)} suffix="×" />
+          const itens = [
+            { label: 'ENTR', pct: entr, val: entrVal, color: 'var(--accent-win)' },
+            { label: 'MG1',  pct: mg1,  val: mg1Val,  color: 'var(--accent-warn)' },
+            ...(mg2 != null ? [{ label: 'MG2', pct: mg2, val: mg2Val, color: 'var(--accent-loss)' }] : []),
+          ]
 
-      <ConfigField id="maxCiclosPorDia"     label="Limite de Ciclos por Dia"
-        desc="Limite comportamental de ciclos diários."
-        type="number" step="1" min="1"
-        value={form.maxCiclosPorDia ?? 3}
-        onChange={v => set('maxCiclosPorDia', v)} />
+          return (
+            <div style={{
+              margin: '0.75rem 0 1rem',
+              padding: '0.875rem 1rem',
+              borderRadius: '0.5rem',
+              background: 'rgba(16,185,129,0.06)',
+              border: '1px solid rgba(16,185,129,0.2)',
+            }}>
+              {/* Cabeçalho */}
+              <div style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-win)', marginBottom: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Operação com base no Stop Diário</span>
+                {temBanca && <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{formatUSD(banca!)}</span>}
+              </div>
 
-      <ConfigField id="maxEntradasPorCiclo" label="Máx. de Entradas por Ciclo"
-        desc="Máximo de entradas por ciclo (quando MG2 está habilitado)."
-        type="number" step="1" min="2" max="3"
-        value={form.maxEntradasPorCiclo ?? 3}
-        onChange={v => set('maxEntradasPorCiclo', v)} />
+              {/* Grid de entradas */}
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${itens.length + 1}, 1fr)`, gap: '0.5rem' }}>
+                {itens.map(({ label, pct, val, color }) => (
+                  <div key={label} style={{
+                    padding: '0.625rem 0.75rem',
+                    borderRadius: '0.5rem',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border)',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color, fontFamily: 'monospace' }}>{fmtPctCalc(pct)}</div>
+                    {temBanca && val != null && (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '0.2rem' }}>${val}</div>
+                    )}
+                  </div>
+                ))}
+                {/* Ciclo total */}
+                <div style={{
+                  padding: '0.625rem 0.75rem',
+                  borderRadius: '0.5rem',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ciclo</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{fmtPctCalc(risco)}</div>
+                  {temBanca && totalCiclo != null && (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '0.2rem' }}>${totalCiclo}</div>
+                  )}
+                </div>
+              </div>
 
-      <ConfigField id="mg2Habilitado"       label="MG2 Habilitado"
-        desc="Permite fazer o segundo Martingale."
-        type="boolean"
-        value={form.mg2Habilitado ?? false}
-        onChange={v => set('mg2Habilitado', v)} />
+              {/* Rodapé */}
+              {temBanca && (
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Valores arredondados para baixo — corretora aceita apenas números inteiros.</span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-loss)' }}>
+                    ${totalCiclo} <span style={{ fontWeight: 400 }}>({(totalPct * 100).toFixed(2)}% da banca)</span>
+                  </span>
+                </div>
+              )}
+
+              {/* Aviso de divergência */}
+              {(form.pctSugeridaEntrada ?? 0.02) - entr > 0.0001 && (() => {
+                const configurada = form.pctSugeridaEntrada ?? 0.02
+                const riscoNecessario = configurada * divisor
+                return (
+                  <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', fontSize: '0.75rem', color: 'var(--accent-warn)' }}>
+                    <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>
+                      ⚠ Entrada configurada ({fmtPctCalc(configurada)}) difere do valor calculado ({fmtPctCalc(entr)}).
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                      Para alinhar, escolha uma das opções:
+                      <br />• Reduza a <strong style={{ color: 'var(--text-primary)' }}>% Sugerida de Entrada</strong> para <strong style={{ color: 'var(--accent-win)' }}>{fmtPctCalc(entr)}</strong>
+                      <br />• Ou aumente o <strong style={{ color: 'var(--text-primary)' }}>Stop Diário</strong> para <strong style={{ color: 'var(--accent-win)' }}>{fmtPctCalc(riscoNecessario)}</strong>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )
+        })()}
+      </SecaoCard>
+
+      {/* Martingale */}
+      <SecaoCard titulo="Martingale" descricao="Estrutura de reforço após perdas. Configure fatores e número máximo de entradas." icon={BarChart2}>
+        <ConfigField id="mg2Habilitado" label="MG2 Habilitado"
+          desc="Permite realizar o segundo Martingale (MG2) no ciclo."
+          type="boolean"
+          value={form.mg2Habilitado ?? false}
+          onChange={v => {
+            set('mg2Habilitado', v)
+            set('maxEntradasPorCiclo', v ? '3' : '2')
+          }} />
+        <ConfigField id="fatorMG1" label="Fator MG1"
+          desc="Multiplicador aplicado sobre o valor de entrada para calcular MG1."
+          type="number" step="0.1" min="1"
+          value={form.fatorMG1 ?? 2}
+          onChange={v => set('fatorMG1', v)} suffix="×" />
+        <ConfigField id="fatorMG2" label="Fator MG2"
+          desc="Multiplicador aplicado sobre MG1 para calcular MG2."
+          type="number" step="0.1" min="1"
+          value={form.fatorMG2 ?? 2}
+          onChange={v => set('fatorMG2', v)} suffix="×" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>Entradas por Ciclo</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+              Calculado automaticamente: {form.mg2Habilitado ? 'ENTR + MG1 + MG2' : 'ENTR + MG1'}
+            </div>
+          </div>
+          <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--accent-blue)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.5rem', padding: '0.25rem 0.75rem' }}>
+            {form.mg2Habilitado ? 3 : 2}
+          </div>
+        </div>
+      </SecaoCard>
+
+
 
       <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
@@ -291,7 +437,7 @@ function AportesPlanner() {
                     autoFocus style={{ maxWidth: 160 }} />
                 ) : (
                   <span style={{ fontWeight: 700, color: 'var(--accent-win)', fontSize: '0.9rem' }}>
-                    US$ {a.valor.toFixed(2)}
+                    {formatUSD(a.valor)}
                   </span>
                 )}
               </div>
@@ -331,7 +477,189 @@ function AportesPlanner() {
               Total de aportes planejados
             </span>
             <span style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>
-              US$ {totalAportes.toFixed(2)}
+              {formatUSD(totalAportes)}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Planner de Saques ────────────────────────────────────────
+interface SaquePlanejado { id: string; mes: string; valor: number }
+
+function SaquesPlanner() {
+  const [saques, setSaques] = useState<SaquePlanejado[]>([])
+  const [loading, setLoading] = useState(true)
+  const [novoMes, setNovoMes] = useState('')
+  const [novoValor, setNovoValor] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoValor, setEditandoValor] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const mesesOpcoes = gerarOpcoesMeses(24)
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/saques')
+      setSaques(data)
+    } catch { setError('Erro ao carregar saques.') }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const mesesJaUsados = saques.map(s => s.mes)
+
+  const handleAdicionar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoMes || !novoValor) { setError('Selecione o mês e informe o valor.'); return }
+    const val = parseFloat(novoValor)
+    if (isNaN(val) || val <= 0) { setError('Informe um valor válido.'); return }
+    setSaving(true)
+    try {
+      await api.post('/saques', { mes: novoMes, valor: val })
+      setNovoMes('')
+      setNovoValor('')
+      setError('')
+      carregar()
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } }
+      setError(e?.response?.data?.error ?? 'Erro ao adicionar saque.')
+    } finally { setSaving(false) }
+  }
+
+  const handleEditar = async (id: string) => {
+    const val = parseFloat(editandoValor)
+    if (isNaN(val) || val <= 0) { setError('Informe um valor válido.'); return }
+    setSaving(true)
+    try {
+      await api.patch(`/saques/${id}`, { valor: val })
+      setEditandoId(null)
+      setError('')
+      carregar()
+    } catch { setError('Erro ao salvar.') }
+    finally { setSaving(false) }
+  }
+
+  const handleDeletar = async (id: string) => {
+    try {
+      await api.delete(`/saques/${id}`)
+      carregar()
+    } catch { setError('Erro ao remover saque.') }
+  }
+
+  const totalSaques = saques.reduce((s, a) => s + a.valor, 0)
+
+  return (
+    <div>
+      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 1rem' }}>
+        Planeje saques em diferentes meses. Cada saque é aplicado automaticamente na Projeção Anual.
+      </p>
+
+      {/* Form adicionar */}
+      <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div>
+          <label className="label" style={{ marginBottom: '0.25rem' }}>Mês</label>
+          <select className="input" style={{ width: 160 }} value={novoMes}
+            onChange={e => setNovoMes(e.target.value)} id="novo-saque-mes">
+            <option value="">— Selecione —</option>
+            {mesesOpcoes
+              .filter(o => !mesesJaUsados.includes(o.value))
+              .map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" style={{ marginBottom: '0.25rem' }}>Valor (US$)</label>
+          <input className="input" type="number" step="0.01" min="0.01" placeholder="0.00"
+            style={{ width: 140 }} value={novoValor} onChange={e => setNovoValor(e.target.value)}
+            id="novo-saque-valor" />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={saving || !novoMes || !novoValor}
+          style={{ whiteSpace: 'nowrap' }}>
+          {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
+        </button>
+      </form>
+
+      {error && (
+        <div style={{ marginBottom: '0.75rem', padding: '0.5rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Lista */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      ) : saques.length === 0 ? (
+        <div style={{ padding: '1.5rem', textAlign: 'center', borderRadius: '0.625rem', border: '1px dashed var(--border)', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+          Nenhum saque planejado ainda.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {saques.map(s => (
+            <div key={s.id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.875rem',
+              borderRadius: '0.625rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
+            }}>
+              {/* Mês */}
+              <div style={{ minWidth: 80, fontWeight: 600, color: 'var(--accent-blue)', fontSize: '0.875rem' }}>
+                {mesParaLabel(s.mes)}
+              </div>
+              {/* Valor / edit */}
+              <div style={{ flex: 1 }}>
+                {editandoId === s.id ? (
+                  <input className="input" type="number" step="0.01" min="0.01"
+                    value={editandoValor} onChange={e => setEditandoValor(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleEditar(s.id)}
+                    autoFocus style={{ maxWidth: 160 }} />
+                ) : (
+                  <span style={{ fontWeight: 700, color: 'var(--accent-win)', fontSize: '0.9rem' }}>
+                    {formatUSD(s.valor)}
+                  </span>
+                )}
+              </div>
+              {/* Ações */}
+              <div style={{ display: 'flex', gap: '0.375rem' }}>
+                {editandoId === s.id ? (
+                  <>
+                    <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }}
+                      onClick={() => handleEditar(s.id)}>
+                      <Check size={12} /> Salvar
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => setEditandoId(null)}>
+                      <X size={12} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => { setEditandoId(s.id); setEditandoValor(String(s.valor)) }}
+                      title="Editar valor">
+                      <Pencil size={13} />
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
+                      onClick={() => handleDeletar(s.id)} title="Remover saque">
+                      <X size={13} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Total */}
+          <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Total de saques planejados
+            </span>
+            <span style={{ fontWeight: 700, color: 'var(--accent-blue)' }}>
+              {formatUSD(totalSaques)}
             </span>
           </div>
         </div>
@@ -345,22 +673,10 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
   form: Partial<Configuration>; set: (k: keyof Configuration, v: string | boolean) => void
   onSave: () => void; saving: boolean; saved: boolean
 }) {
-  const mesesOpcoes = gerarOpcoesMeses(24)
-
   return (
     <div>
       <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Parâmetros Financeiros</h3>
-      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Payout, câmbio e planejamento financeiro.</p>
-
-      <ConfigField id="payout" label="Payout da Corretora (%)"
-        desc="Percentual de retorno sobre ganhos."
-        type="number" step="0.01" min="0" max="1"
-        value={Number((form.payout ?? 0.9) * 100).toFixed(0)}
-        onChange={v => set('payout', String(Number(v) / 100))} suffix="%" />
-
-      {/* Câmbio */}
-      <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>Câmbio</div>
+      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Taxas de câmbio usadas nas conversões de depósitos e saques.</p>
 
       <ConfigField id="cambioCompra" label="Câmbio Compra (Depósitos)"
         desc="Taxa aplicada na conversão de R$ para US$ em depósitos."
@@ -374,69 +690,9 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
         value={form.cambioVenda ?? 4.8}
         onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
 
-      {/* Planejamento de Aportes */}
-      <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>
-        Aportes Planejados
-      </div>
-
-      <AportesPlanner />
-
-      {/* Planejamento de Saques */}
-      <div style={{ height: 1, background: 'var(--border)', margin: '1.25rem 0' }} />
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '1rem' }}>
-        Planejamento de Saques
-      </div>
-
-      <div style={{ padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-          Faixa de Saque Desejada
-        </div>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
-          Informe o mês que pretende começar a sacar e a faixa de valores desejada.
-        </p>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-          <div>
-            <label className="label" htmlFor="saquesMesInicio" style={{ marginBottom: '0.3rem' }}>Mês de Início dos Saques</label>
-            <select id="saquesMesInicio" className="input" style={{ width: 180 }}
-              value={form.saquesMesInicio ?? ''}
-              onChange={e => set('saquesMesInicio', e.target.value)}>
-              <option value="">— Selecione —</option>
-              {mesesOpcoes.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div>
-            <label className="label" htmlFor="saqueMinimo" style={{ marginBottom: '0.3rem' }}>Saque Mínimo (US$)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <input id="saqueMinimo" className="input" type="number" step="0.01" min="0"
-                placeholder="0.00" style={{ width: 150 }}
-                value={form.saqueMinimo ?? ''}
-                onChange={e => set('saqueMinimo', e.target.value)} />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>US$</span>
-            </div>
-          </div>
-          <div>
-            <label className="label" htmlFor="saqueMaximo" style={{ marginBottom: '0.3rem' }}>Saque Máximo (US$)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <input id="saqueMaximo" className="input" type="number" step="0.01" min="0"
-                placeholder="0.00" style={{ width: 150 }}
-                value={form.saqueMaximo ?? ''}
-                onChange={e => set('saqueMaximo', e.target.value)} />
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>US$</span>
-            </div>
-          </div>
-        </div>
-        {form.saquesMesInicio && (
-          <div style={{ marginTop: '0.625rem', fontSize: '0.78rem', color: 'var(--accent-win)' }}>
-            ✓ Saques previstos a partir de {mesParaLabel(form.saquesMesInicio)}
-            {form.saqueMinimo ? ` · Faixa: US$ ${Number(form.saqueMinimo).toFixed(2)}${form.saqueMaximo ? ` – US$ ${Number(form.saqueMaximo).toFixed(2)}` : '+'}` : ''}
-          </div>
-        )}
-      </div>
+      <p style={{ marginTop: '1.25rem', fontSize: '0.78rem', color: 'var(--text-muted)', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
+        💡 Para planejar aportes e saques futuros, acesse a página <strong>Depósitos e Saques</strong>.
+      </p>
 
       <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
@@ -546,13 +802,13 @@ function TabMotivos() {
 
   return (
     <div>
-      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Motivos de Entrada</h3>
+      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Origem da Entrada</h3>
       <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-        Adicione, edite e desative motivos. Motivos desativados são preservados no histórico.
+        Adicione, edite e desative origens. Origens desativadas são preservadas no histórico.
       </p>
 
       <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1.5rem' }}>
-        <input className="input" placeholder="Nome do novo motivo..."
+        <input className="input" placeholder="Nome da nova origem..."
           value={novoNome} onChange={e => setNovoNome(e.target.value)} id="novo-motivo-input" />
         <button type="submit" className="btn btn-primary" disabled={saving || !novoNome.trim()} style={{ whiteSpace: 'nowrap' }}>
           {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
@@ -617,6 +873,335 @@ function TabMotivos() {
     </div>
   )
 }
+// ─── Aba Ativos Disponíveis ─────────────────────────────────────
+function TabAtivos() {
+  const [ativos, setAtivos] = useState<AtivoObj[]>([])
+  const [loading, setLoading] = useState(true)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoPayout, setNovoPayout] = useState('85')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoPayout, setEditandoPayout] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/ativos')
+      setAtivos(data)
+    } catch { setError('Erro ao carregar ativos') }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const handleAdicionar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoNome.trim()) return
+    const py = parseFloat(novoPayout)
+    if (isNaN(py) || py <= 0 || py > 100) { setError('Payout inválido'); return }
+    
+    setSaving(true)
+    try {
+      await api.post('/ativos', { nome: novoNome.trim(), payout: py / 100 })
+      setNovoNome('')
+      setNovoPayout('85')
+      setError('')
+      carregar()
+    } catch (err: unknown) { 
+      const parsed = err as { response?: { data?: { error?: string } } }
+      setError(parsed?.response?.data?.error ?? 'Erro ao criar ativo')
+    }
+    finally { setSaving(false) }
+  }
+
+  const handleEditarPayout = async (id: string) => {
+    const py = parseFloat(editandoPayout)
+    if (isNaN(py) || py <= 0 || py > 100) { setError('Payout inválido'); return }
+    
+    setSaving(true)
+    try {
+      await api.patch(`/ativos/${id}`, { payout: py / 100 })
+      setEditandoId(null)
+      carregar()
+    } catch { setError('Erro ao atualizar payout') }
+    finally { setSaving(false) }
+  }
+
+  const handleToggle = async (m: AtivoObj) => {
+    try {
+      await api.patch(`/ativos/${m.id}`, { ativo: !m.ativo })
+      carregar()
+    } catch { setError('Erro ao alterar ativo') }
+  }
+
+  const handleDeletar = async (id: string) => {
+    try {
+      await api.delete(`/ativos/${id}`)
+      carregar()
+    } catch { setError('Erro ao remover ativo') }
+  }
+
+  const handleMover = async (index: number, direcao: 'up' | 'down') => {
+    const novaLista = [...ativos]
+    const alvo = direcao === 'up' ? index - 1 : index + 1
+    if (alvo < 0 || alvo >= novaLista.length) return
+    ;[novaLista[index], novaLista[alvo]] = [novaLista[alvo], novaLista[index]]
+    setAtivos(novaLista)
+    try {
+      await api.put('/ativos/ordem', { ids: novaLista.map(a => a.id) })
+    } catch { setError('Erro ao reordenar') }
+  }
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Ativos Disponíveis</h3>
+      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        Cadastre os ativos que você opera (ex: BTC/USDT, ETH/USDT).
+      </p>
+
+      <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1.5rem' }}>
+        <input className="input" placeholder="Ativo. Ex: BTC/USDT" style={{ flex: 1 }}
+          value={novoNome} onChange={e => setNovoNome(e.target.value.toUpperCase())} id="novo-ativo-input" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <input className="input" type="number" placeholder="Payout" style={{ width: 80 }}
+            value={novoPayout} onChange={e => setNovoPayout(e.target.value)} min="1" max="100" />
+          <span style={{ color: 'var(--text-muted)' }}>%</span>
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={saving || !novoNome.trim()} style={{ whiteSpace: 'nowrap' }}>
+          {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
+        </button>
+      </form>
+
+      {error && (
+        <div style={{ marginBottom: '1rem', padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {ativos.map((m, idx) => (
+            <div key={m.id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+              borderRadius: '0.625rem', border: '1px solid var(--border)',
+              background: m.ativo ? 'var(--bg-card)' : 'var(--bg-surface)',
+              opacity: m.ativo ? 1 : 0.6, transition: 'all 0.15s',
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <button className="btn btn-ghost" style={{ padding: '0.1rem 0.3rem', opacity: idx === 0 ? 0.2 : 1 }}
+                  disabled={idx === 0} onClick={() => handleMover(idx, 'up')} title="Mover para cima">
+                  <ChevronUp size={13} />
+                </button>
+                <button className="btn btn-ghost" style={{ padding: '0.1rem 0.3rem', opacity: idx === ativos.length - 1 ? 0.2 : 1 }}
+                  disabled={idx === ativos.length - 1} onClick={() => handleMover(idx, 'down')} title="Mover para baixo">
+                  <ChevronDown size={13} />
+                </button>
+              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <span style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem', minWidth: 100 }}>
+                  {m.nome}
+                </span>
+                
+                {editandoId === m.id ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <input className="input" type="number" style={{ width: 70, padding: '0.3rem' }} 
+                      value={editandoPayout} onChange={e => setEditandoPayout(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleEditarPayout(m.id)} autoFocus />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--accent-blue)', fontWeight: 600 }}>
+                    {formatPct(m.payout, 0)}
+                  </span>
+                )}
+              </div>
+              
+              {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>Inativo</span>}
+              <div style={{ display: 'flex', gap: '0.375rem' }}>
+                {editandoId === m.id ? (
+                  <>
+                    <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }} onClick={() => handleEditarPayout(m.id)}>
+                      <Check size={12} />
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setEditandoId(null)}>
+                      <X size={12} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => { setEditandoId(m.id); setEditandoPayout(((m.payout || 0.85) * 100).toFixed(0)) }} title="Editar Payout">
+                      <Pencil size={13} />
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
+                      onClick={() => handleToggle(m)} title={m.ativo ? 'Desativar' : 'Reativar'}>
+                      {m.ativo ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
+                      onClick={() => handleDeletar(m.id)} title="Remover definitivamente">
+                      <X size={13} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Aba Erros do Dia ─────────────────────────────────────────
+interface ErroDiaObj { id: string; nome: string; gravidade: 'LEVE' | 'GRAVE' }
+
+function TabErrosDia() {
+  const [erros, setErros] = useState<ErroDiaObj[]>([])
+  const [loading, setLoading] = useState(true)
+  const [novoNome, setNovoNome] = useState('')
+  const [novaGravidade, setNovaGravidade] = useState<'LEVE' | 'GRAVE'>('GRAVE')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoNome, setEditandoNome] = useState('')
+  const [editandoGravidade, setEditandoGravidade] = useState<'LEVE'|'GRAVE'>('GRAVE')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/erros-dia')
+      setErros(data)
+    } catch { setError('Erro ao carregar lista') }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const handleAdicionar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoNome.trim()) return
+    setSaving(true)
+    try {
+      await api.post('/erros-dia', { nome: novoNome.trim(), gravidade: novaGravidade })
+      setNovoNome('')
+      setNovaGravidade('GRAVE')
+      carregar()
+    } catch { setError('Erro ao adicionar') }
+    finally { setSaving(false) }
+  }
+
+  const handleEditar = async (id: string) => {
+    if (!editandoNome.trim()) return
+    setSaving(true)
+    try {
+      await api.patch(`/erros-dia/${id}`, { nome: editandoNome.trim(), gravidade: editandoGravidade })
+      setEditandoId(null)
+      carregar()
+    } catch { setError('Erro ao editar') }
+    finally { setSaving(false) }
+  }
+
+  const handleDeletar = async (id: string) => {
+    try {
+      await api.delete(`/erros-dia/${id}`)
+      carregar()
+    } catch { setError('Erro ao excluir') }
+  }
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Tipos de Erro</h3>
+      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        Lista de erros disponíveis para marcar ao encerrar o dia.
+      </p>
+
+      <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1.5rem' }}>
+        <input className="input" placeholder="Nome do novo erro..."
+          value={novoNome} onChange={e => setNovoNome(e.target.value)} style={{ flex: 1 }} />
+        <select className="input" value={novaGravidade} onChange={e => setNovaGravidade(e.target.value as 'LEVE'|'GRAVE')} style={{ width: 140 }}>
+          <option value="GRAVE">🔴 Grave</option>
+          <option value="LEVE">🟡 Leve</option>
+        </select>
+        <button type="submit" className="btn btn-primary" disabled={saving || !novoNome.trim()} style={{ whiteSpace: 'nowrap' }}>
+          {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
+        </button>
+      </form>
+
+      {error && (
+        <div style={{ marginBottom: '1rem', padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      ) : erros.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem', border: '1px dashed var(--border)', borderRadius: '0.625rem' }}>
+          Nenhum erro cadastrado. Adicione o primeiro acima.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {erros.map(e => (
+            <div key={e.id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
+              borderRadius: '0.625rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
+            }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {editandoId === e.id ? (
+                  <>
+                    <input className="input" value={editandoNome} onChange={ev => setEditandoNome(ev.target.value)}
+                      onKeyDown={ev => ev.key === 'Enter' && handleEditar(e.id)} autoFocus style={{ maxWidth: 200, flex: 1 }} />
+                    <select className="input" value={editandoGravidade} onChange={ev => setEditandoGravidade(ev.target.value as 'LEVE'|'GRAVE')} style={{ width: 120 }}>
+                      <option value="GRAVE">🔴 Grave</option>
+                      <option value="LEVE">🟡 Leve</option>
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ flex: 1, fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{e.nome}</span>
+                    <span className={`badge badge-${e.gravidade === 'GRAVE' ? 'loss' : 'warn'}`} style={{ fontSize: '0.65rem' }}>
+                      {e.gravidade === 'GRAVE' ? 'Grave' : 'Leve'}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '0.375rem' }}>
+                {editandoId === e.id ? (
+                  <>
+                    <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }} onClick={() => handleEditar(e.id)}>
+                      <Check size={12} /> Salvar
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setEditandoId(null)}>
+                      <X size={12} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                      onClick={() => { setEditandoId(e.id); setEditandoNome(e.nome); setEditandoGravidade(e.gravidade ?? 'GRAVE') }} title="Editar">
+                      <Pencil size={13} />
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
+                      onClick={() => handleDeletar(e.id)} title="Excluir">
+                      <Trash2 size={13} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── Botão de salvar ──────────────────────────────────────────
 function SaveButton({ onSave, saving, saved }: { onSave: () => void; saving: boolean; saved: boolean }) {
@@ -646,8 +1231,8 @@ export default function Configuracoes() {
   const setField = (key: keyof Configuration, value: string | boolean) => {
     setForm(prev => {
       // Campos de string (mês): guardar como string
-      if (key === 'aporteMes' || key === 'saquesMesInicio') {
-        return { ...prev, [key]: value === '' ? null : value }
+      if (key === 'aporteMes') {
+        return { ...prev, [key]: value === '' ? null : (value as string) }
       }
       const parsed = typeof value === 'boolean' ? value : isNaN(Number(value)) ? value : Number(value)
       return { ...prev, [key]: parsed }
@@ -709,6 +1294,8 @@ export default function Configuracoes() {
         {activeTab === 'financeiro' && <TabFinanceiro {...tabProps} />}
         {activeTab === 'projecao'   && <TabProjecao   {...tabProps} />}
         {activeTab === 'motivos'    && <TabMotivos />}
+        {activeTab === 'ativos'     && <TabAtivos />}
+        {activeTab === 'erros'      && <TabErrosDia />}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

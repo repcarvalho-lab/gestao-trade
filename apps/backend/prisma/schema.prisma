@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -19,12 +20,18 @@ enum Role {
   user
 }
 
+enum GravidadeErro {
+  LEVE
+  GRAVE
+}
+
 enum DayStatus {
   OPERANDO
   META_IDEAL
   META_MAXIMA
   ATENCAO
   STOP
+  META_NAO_ATINGIDA
 }
 
 enum CicloStatus {
@@ -68,10 +75,13 @@ model User {
   trades         Trade[]
   ciclos         Ciclo[]
   motivos        MotivoEntrada[]
+  ativos         Ativo[]
   movimentos     DepositoSaque[]
   weeklyReports  WeeklyReport[]
   monthlyReports MonthlyReport[]
   aportes        AportePlanejado[]
+  saques         SaquePlanejado[]
+  errosDia       ErroDia[]
 }
 
 model Configuration {
@@ -87,7 +97,6 @@ model Configuration {
   mg2Habilitado       Boolean @default(false)
   maxEntradasPorCiclo Int     @default(3)
   maxCiclosPorDia     Int     @default(3)
-  payout              Float   @default(0.90)
   cambioCompra        Float   @default(5.20)
   cambioVenda         Float   @default(4.80)
   retornoConservador  Float   @default(0.20)
@@ -95,9 +104,8 @@ model Configuration {
   retornoAgressivo    Float   @default(0.60)
   aporteValor         Float?
   aporteMes           String?   // mantido apenas para migration — será removido
-  saqueMinimo         Float?
-  saqueMaximo         Float?
-  saquesMesInicio     String?   // formato: "2026-07"
+  saque               Float?
+  saquesMesInicio     String?   // formato: "2026-06"
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -105,6 +113,19 @@ model Configuration {
 }
 
 model AportePlanejado {
+  id        String   @id @default(uuid())
+  userId    String
+  mes       String   // formato: "2026-06"
+  valor     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mes])
+}
+
+model SaquePlanejado {
   id        String   @id @default(uuid())
   userId    String
   mes       String   // formato: "2026-06"
@@ -137,6 +158,7 @@ model TradingDay {
   respeitouLimiteCiclos Boolean?
   emocional             String?
   seguiuSetup           Boolean?
+  errosDia              String[]  @default([])
   isClosed              Boolean   @default(false)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -198,6 +220,21 @@ model MotivoEntrada {
   trades Trade[]
 }
 
+model Ativo {
+  id        String   @id @default(uuid())
+  userId    String
+  nome      String   // ex: "BTC/USDT", "ETH/USDT"
+  ativo     Boolean  @default(true)
+  payout    Float    @default(0.85)
+  ordem     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, nome])
+}
+
 model DepositoSaque {
   id             String        @id @default(uuid())
   userId         String
@@ -211,6 +248,17 @@ model DepositoSaque {
   faixaPlanejada String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ErroDia {
+  id        String   @id @default(uuid())
+  userId    String
+  nome      String
+  gravidade GravidadeErro @default(GRAVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

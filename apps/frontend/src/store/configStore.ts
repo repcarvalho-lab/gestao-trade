@@ -13,7 +13,6 @@ export interface Configuration {
   mg2Habilitado: boolean
   maxEntradasPorCiclo: number
   maxCiclosPorDia: number
-  payout: number
   cambioCompra: number
   cambioVenda: number
   retornoConservador: number
@@ -21,9 +20,6 @@ export interface Configuration {
   retornoAgressivo: number
   aporteValor: number | null
   aporteMes: string | null
-  saqueMinimo: number | null
-  saqueMaximo: number | null
-  saquesMesInicio: string | null
 }
 
 interface ConfigState {

@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import { ErrorBoundary } from '../ErrorBoundary'
 
 export default function Layout() {
   return (
@@ -15,7 +16,9 @@ export default function Layout() {
           overflowX: 'hidden',
         }}
       >
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   )
