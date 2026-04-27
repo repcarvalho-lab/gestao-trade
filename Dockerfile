@@ -37,7 +37,6 @@ COPY apps/backend/prisma ./apps/backend/prisma
 # O Index.ts apontará exatamente para esta pasta relativa
 COPY --from=build-front /app/apps/frontend/dist ./apps/frontend/dist
 
-EXPOSE 4001
 
 COPY apps/backend/start.sh ./apps/backend/start.sh
 RUN chmod +x ./apps/backend/start.sh
