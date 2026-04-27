@@ -1,4 +1,5 @@
 FROM node:22-alpine AS builder
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
@@ -14,6 +15,7 @@ RUN npm run build
 
 # ---- Production image ----
 FROM node:22-alpine AS runner
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
