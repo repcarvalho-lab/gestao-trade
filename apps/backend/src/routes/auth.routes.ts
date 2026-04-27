@@ -12,9 +12,9 @@ const loginSchema = z.object({
   password: z.string().min(6),
 })
 
-router.post('/login', validate(loginSchema), authController.login)
-router.post('/refresh', authController.refresh)
-router.post('/logout', authController.logout)
-router.get('/me', authenticate, authController.me)
+router.post('/login', validate(loginSchema), catchAsync(authController.login))
+router.post('/refresh', catchAsync(authController.refresh))
+router.post('/logout', catchAsync(authController.logout))
+router.get('/me', authenticate, authController.me) // me is sync
 
 export default router
