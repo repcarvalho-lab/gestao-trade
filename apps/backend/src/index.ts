@@ -8,7 +8,7 @@ import { router } from './routes'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
-const PORT = process.env.PORT ?? 4000
+const PORT = Number(process.env.PORT) || 4000
 
 // ── Middlewares ──────────────────────────────────────────────
 app.use(
@@ -46,7 +46,7 @@ app.use('/api', (_req, res) => {
 app.use(errorHandler)
 
 // ── Start ─────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 TraderOS Backend rodando na porta ${PORT}`)
   console.log(`📍 Ambiente: ${process.env.NODE_ENV ?? 'development'}`)
   console.log(`🔗 Health: http://localhost:${PORT}/api/health`)
