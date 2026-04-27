@@ -37,7 +37,6 @@ async function main() {
       mg2Habilitado: false,
       maxEntradasPorCiclo: 3,
       maxCiclosPorDia: 3,
-      payout: 0.9,
       cambioCompra: 5.2,
       cambioVenda: 4.8,
       retornoConservador: 0.2,
