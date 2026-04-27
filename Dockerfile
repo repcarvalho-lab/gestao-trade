@@ -41,5 +41,7 @@ COPY --from=build-front /app/apps/frontend/dist ./apps/frontend/dist
 COPY apps/backend/start.sh ./apps/backend/start.sh
 RUN chmod +x ./apps/backend/start.sh
 
+EXPOSE 8080
+
 # Executa migrações do banco e starta servidor Node que entrega os dois
 CMD ["/app/apps/backend/start.sh"]
