@@ -23,24 +23,6 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'erros',      label: 'Tipos de Erro',        icon: AlertTriangle },
 ]
 
-// ─── Helpers de mês ───────────────────────────────────────────
-function mesParaLabel(mes: string | null | undefined): string {
-  if (!mes) return ''
-  const [ano, m] = mes.split('-')
-  const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-  return `${nomes[Number(m) - 1]}/${ano}`
-}
-
-function gerarOpcoesMeses(qtd = 24): { value: string; label: string }[] {
-  const resultado = []
-  const agora = new Date()
-  for (let i = 0; i < qtd; i++) {
-    const d = new Date(agora.getFullYear(), agora.getMonth() + i, 1)
-    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    resultado.push({ value: valor, label: mesParaLabel(valor) })
-  }
-  return resultado
-}
 
 // ─── Campo de configuração ────────────────────────────────────
 function ConfigField({

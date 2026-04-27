@@ -13,8 +13,6 @@ interface Movimento {
   valorUSD: number; cambio: number; valorBRL: number
   mes: string; observacao: string | null; faixaPlanejada: string | null
 }
-interface AportePlanejado { id: string; mes: string; valor: number }
-interface SaquePlanejado  { id: string; mes: string; valor: number }
 type Tab = 'movimentos' | 'planejados'
 
 // ─── Helpers ──────────────────────────────────────────────────

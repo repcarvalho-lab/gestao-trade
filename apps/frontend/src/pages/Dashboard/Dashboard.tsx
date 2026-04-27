@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Activity, DollarSign, Target, TrendingUp, TrendingDown, Calendar, ArrowRight, Wallet, BarChart2 } from 'lucide-react'

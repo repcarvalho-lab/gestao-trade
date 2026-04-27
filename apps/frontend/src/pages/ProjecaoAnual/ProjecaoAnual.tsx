@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -416,7 +416,7 @@ export default function ProjecaoAnual() {
               </tr>
             </thead>
             <tbody>
-              {dadosFiltrados.map((row, i) => (
+              {dadosFiltrados.map((row) => (
                 <tr
                   key={row.mesAno}
                   style={{ borderTop: '1px solid var(--border)' }}
