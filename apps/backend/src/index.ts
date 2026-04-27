@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import morgan from 'morgan'
 import cookieParser from 'cookie-parser'
+import path from 'path'
 import { router } from './routes'
 import { errorHandler } from './middleware/errorHandler'
 
@@ -27,8 +28,17 @@ if (process.env.NODE_ENV !== 'test') {
 // ── Rotas ────────────────────────────────────────────────────
 app.use('/api', router)
 
+// ── Frontend (Arquivos Estáticos) ────────────────────────────
+const frontendPath = path.join(__dirname, '../../frontend/dist')
+app.use(express.static(frontendPath))
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next()
+  res.sendFile(path.join(frontendPath, 'index.html'))
+})
+
 // ── 404 ──────────────────────────────────────────────────────
-app.use((_req, res) => {
+app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' })
 })
 
