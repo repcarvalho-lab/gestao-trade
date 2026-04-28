@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Activity } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import api from '../../../services/api'
@@ -68,8 +68,7 @@ export default function AbaEstrategias({ filtro }: { filtro: Filtro }) {
   }
   const mainMetric = metricsInfo[ordem]
 
-  const resultColor = (v: number) => v > 0 ? 'var(--accent-win)' : v < 0 ? 'var(--accent-loss)' : 'var(--text-muted)'
-  const resultClass = (v: number) => v > 0 ? 'text-accent-win' : v < 0 ? 'text-accent-loss' : 'text-text-muted'
+    const resultClass = (v: number) => v > 0 ? 'text-accent-win' : v < 0 ? 'text-accent-loss' : 'text-text-muted'
 
   return (
     <div className="flex flex-col gap-6">

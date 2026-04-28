@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { CheckCircle, AlertOctagon, Target, Crosshair, TrendingUp, BarChart2, Clock } from 'lucide-react'
 import { Preset, computeFiltro, PRESETS } from './components/RelatoriosShared'
 

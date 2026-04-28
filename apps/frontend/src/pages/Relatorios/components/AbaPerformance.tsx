@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Activity, Calendar, TrendingUp } from 'lucide-react'
 import api from '../../../services/api'
 import { PerformanceData, parseMesLabel, formatDateShort, fmtUSD, fmtPct } from './RelatoriosShared'
@@ -23,8 +23,7 @@ export default function AbaPerformance() {
   const thClass = "px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider text-text-muted border-b border-border whitespace-nowrap"
   const tdClass = "px-3.5 py-2.5 text-[0.82rem] font-mono font-semibold whitespace-nowrap transition-colors"
 
-  const resultColor = (v: number) => v > 0 ? 'var(--accent-win)' : v < 0 ? 'var(--accent-loss)' : 'var(--text-muted)'
-  const resultClass = (v: number) => v > 0 ? 'text-accent-win' : v < 0 ? 'text-accent-loss' : 'text-text-muted'
+    const resultClass = (v: number) => v > 0 ? 'text-accent-win' : v < 0 ? 'text-accent-loss' : 'text-text-muted'
 
   return (
     <div className="flex flex-col gap-5">
