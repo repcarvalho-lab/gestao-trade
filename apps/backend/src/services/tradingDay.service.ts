@@ -53,6 +53,7 @@ export async function criarDia(userId: string, capitalInicialOverride?: number, 
   const movsAnteriores = await prisma.depositoSaque.findMany({
     where: {
       userId,
+      conta: 'CORRETORA',
       data: {
         ...(gtDate ? { gt: gtDate } : {}),
         lt: dataEscolhida,
@@ -77,6 +78,7 @@ export async function criarDia(userId: string, capitalInicialOverride?: number, 
   const movsHoje = await prisma.depositoSaque.findMany({
     where: {
       userId,
+      conta: 'CORRETORA',
       data: {
         gte: dataEscolhida,
         lte: dayEnd,
@@ -89,13 +91,39 @@ export async function criarDia(userId: string, capitalInicialOverride?: number, 
     0
   )
 
+  const movsHojeReserva = await prisma.depositoSaque.findMany({
+    where: {
+      userId,
+      conta: 'RESERVA',
+      data: {
+        gte: dataEscolhida,
+        lte: dayEnd,
+      },
+    },
+  })
+  
+  const config = await prisma.configuration.findUnique({ where: { userId } })
+  const cambio = config?.cambioCompra || 5.0
+
+  const netHojeReservaBRL = movsHojeReserva.reduce(
+    (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL),
+    0
+  )
+  const netHojeReservaUSD = netHojeReservaBRL / cambio
+
+  // ATENÇÃO: Se for retroativo a bancaGlobal USD real pode ser imprecisa em relacao ao cambio daquele dia.
+  // Porem, como a meta diária e stop usam o câmbio ATUAL da reserva, a distorção retroativa é irrelevante para a matemática.
+  const capitalStatus = await import('./capital.service').then(m => m.getCapitalStatus(userId))
+
   return prisma.tradingDay.create({
     data: {
       userId,
       date: dataEscolhida,
       capitalInicial,
       deposito: netHoje,
+      depositoReserva: netHojeReservaUSD,
       capitalInicialReal: capitalInicial + netHoje,
+      bancaGlobal: capitalStatus.bancaGlobalUSD,
       status: 'OPERANDO',
     },
     include: { trades: true, ciclos: true },
@@ -113,8 +141,9 @@ export async function atualizarDeposito(tradingDayId: string, userId: string, de
   if (!config) throw new AppError('Configurações não encontradas', 500)
 
   // Recalcula valores com novo capital
+  const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
   const trades = await prisma.trade.findMany({ where: { tradingDayId } })
-  const calc = recalcularDia({ ...dia, capitalInicialReal, deposito }, trades, config)
+  const calc = recalcularDia({ ...dia, capitalInicialReal, deposito }, trades, config, bancaGlobalUSD)
 
   return prisma.tradingDay.update({
     where: { id: tradingDayId },
@@ -150,7 +179,9 @@ export async function fecharDia(
   const config = await prisma.configuration.findUnique({ where: { userId } })
   if (!config) throw new AppError('Configurações não encontradas', 500)
 
-  const calc = recalcularDia(dia, dia.trades, config)
+  // Utiliza a bancaGlobal CONGELADA no dia (bancaGlobal) em vez de recalcular com flutuações de câmbio de amanhã
+  const bancaGlobalDia = dia.bancaGlobal || dia.capitalInicialReal
+  const calc = recalcularDia(dia, dia.trades, config, bancaGlobalDia)
   const capitalFinal = dia.capitalInicialReal + calc.resultadoDia
   const respeitouLimiteCiclos = calc.ciclosRealizados <= config.maxCiclosPorDia
 
@@ -204,7 +235,8 @@ export async function reabrirDia(id: string, userId: string) {
   if (!config) throw new AppError('Configurações não encontradas', 500)
 
   // Recalcula o status real a partir dos trades (remove META_NAO_ATINGIDA)
-  const calc = recalcularDia(dia, dia.trades, config)
+  const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
+  const calc = recalcularDia(dia, dia.trades, config, bancaGlobalUSD)
 
   return prisma.tradingDay.update({
     where: { id },
@@ -271,8 +303,16 @@ export async function getDiaComIndicadores(userId: string) {
   const config = await prisma.configuration.findUnique({ where: { userId } })
   if (!config) return dia
 
-  const calc = recalcularDia(dia, dia.trades, config)
-  const sugeridos = calcularValoresSugeridos(dia.capitalInicialReal, config)
+  const { bancaGlobalUSD, saldoReservaBRL, capitalCorretoraUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
+  const calc = recalcularDia(dia, dia.trades, config, bancaGlobalUSD)
+  const sugeridos = calcularValoresSugeridos(bancaGlobalUSD, config)
 
-  return { ...dia, ...calc, ...sugeridos }
+  return { 
+    ...dia, 
+    ...calc, 
+    ...sugeridos,
+    bancaGlobalUSD,
+    saldoReservaBRL,
+    capitalCorretoraUSD,
+  }
 }

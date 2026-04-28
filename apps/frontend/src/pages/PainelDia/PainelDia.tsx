@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, Component, type ReactNode } from 'rea
 import {
   Plus, X, CheckCircle, XCircle, ChevronRight, Loader2,
   TrendingUp, TrendingDown, Target, ShieldAlert, RefreshCw,
-  DollarSign, AlertTriangle, Zap, BarChart2, Trash2, Pencil,
-  ArrowDownCircle, ArrowUpCircle,
+  DollarSign, AlertTriangle, Zap, Wallet, Trash2, Pencil,
+  ArrowDownCircle, ArrowUpCircle, Activity
 } from 'lucide-react'
 import { usePainelStore, type Trade, type TradingDay } from '../../store/painelStore'
 import { useConfigStore } from '../../store/configStore'
+import { useCapitalStore } from '../../store/capitalStore'
 import api from '../../services/api'
 import { formatUSD, formatBRL, formatPct, formatDateFull, formatTime, valueClass, statusLabel, statusClass } from '../../lib/format'
 
@@ -29,7 +30,7 @@ function StatusBadge({ status, stopProximo, isClosed }: { status: string; stopPr
   const colors: Record<string, { bg: string; color: string; border: string }> = {
     OPERANDO:           { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' },
     META_IDEAL:         { bg: 'rgba(16,185,129,0.15)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
-    META_MAXIMA:        { bg: 'rgba(5,150,105,0.15)',  color: '#059669', border: 'rgba(5,150,105,0.3)' },
+    META_MAXIMA:        { bg: 'rgba(139,92,246,0.15)', color: '#8b5cf6', border: 'rgba(139,92,246,0.3)' },
     ATENCAO:            { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
     STOP:               { bg: 'rgba(244,63,94,0.15)',  color: '#f43f5e', border: 'rgba(244,63,94,0.3)' },
     META_NAO_ATINGIDA:  { bg: 'rgba(148,163,184,0.1)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' },
@@ -53,28 +54,6 @@ function StatusBadge({ status, stopProximo, isClosed }: { status: string; stopPr
           <AlertTriangle size={11} /> Stop próximo
         </span>
       )}
-    </div>
-  )
-}
-
-// ─── Card de indicador ────────────────────────────────────────
-function KpiCard({
-  label, value, sub, color, icon: Icon, highlight,
-}: {
-  label: string; value: string; sub?: string; color?: string
-  icon?: React.ElementType; highlight?: boolean
-}) {
-  return (
-    <div className="card" style={{
-      borderColor: highlight ? 'rgba(59,130,246,0.4)' : undefined,
-      background: highlight ? 'rgba(59,130,246,0.05)' : undefined,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
-        {Icon && <Icon size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
-      </div>
-      <div style={{ marginTop: '0.5rem', fontSize: '1.35rem', fontWeight: 700, color: color ?? 'var(--text-primary)', lineHeight: 1.2 }}>{value}</div>
-      {sub && <div style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>{sub}</div>}
     </div>
   )
 }
@@ -530,8 +509,12 @@ function MovimentoModal({ dataISO, onClose, onSaved }: {
   dataISO: string; onClose: () => void; onSaved: () => void
 }) {
   const { config } = useConfigStore()
-  const { fetchDiaAberto } = usePainelStore()
+  const { fetchDiaAberto, transferirCapital } = usePainelStore()
+  const [modalidade, setModalidade] = useState<'DEPSAC' | 'TRANSFER'>('DEPSAC')
   const [tipo, setTipo] = useState<'DEPOSITO' | 'SAQUE'>('DEPOSITO')
+  const [conta, setConta] = useState<'CORRETORA' | 'RESERVA'>('CORRETORA')
+  const [de, setDe] = useState<'CORRETORA' | 'RESERVA'>('RESERVA')
+  const [para, setPara] = useState<'CORRETORA' | 'RESERVA'>('CORRETORA')
   const [valorUSD, setValorUSD] = useState('')
   const [cambio, setCambio] = useState(() => String(config?.cambioCompra ?? ''))
   const [observacao, setObservacao] = useState('')
@@ -556,14 +539,19 @@ function MovimentoModal({ dataISO, onClose, onSaved }: {
     if (isNaN(cam) || cam <= 0) { setError('Informe o câmbio'); return }
     setLoading(true)
     try {
-      await api.post('/movimentos', {
-        tipo,
-        valorUSD: usd,
-        cambio: cam,
-        data: dataISO,
-        observacao: observacao.trim() || undefined,
-      })
-      await fetchDiaAberto()
+      if (modalidade === 'TRANSFER') {
+        await transferirCapital(de, para, usd, cam, dataISO, observacao.trim() || undefined)
+      } else {
+        await api.post('/movimentos', {
+          tipo,
+          conta,
+          valorUSD: usd,
+          cambio: cam,
+          data: dataISO,
+          observacao: observacao.trim() || undefined,
+        })
+        await fetchDiaAberto()
+      }
       onSaved()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
@@ -579,24 +567,82 @@ function MovimentoModal({ dataISO, onClose, onSaved }: {
           <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={onClose}><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label className="label">Tipo</label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {(['DEPOSITO', 'SAQUE'] as const).map(t => (
-                <button key={t} type="button" onClick={() => setTipo(t)}
-                  style={{
-                    flex: 1, padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem',
-                    background: tipo === t ? (t === 'DEPOSITO' ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)') : 'var(--bg-surface)',
-                    borderColor: tipo === t ? (t === 'DEPOSITO' ? '#10b981' : '#f43f5e') : 'var(--border)',
-                    color: tipo === t ? (t === 'DEPOSITO' ? '#10b981' : '#f43f5e') : 'var(--text-secondary)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                  }}>
-                  {t === 'DEPOSITO' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                  {t === 'DEPOSITO' ? 'Depósito' : 'Saque'}
-                </button>
-              ))}
-            </div>
+          <div style={{ display: 'flex', gap: '0.15rem', background: 'var(--bg-card)', padding: '0.2rem', borderRadius: '0.6rem', border: '1px solid var(--border)', marginBottom: '0.25rem' }}>
+            {([
+              { id: 'DEPSAC', label: 'Depósitos/Saques' },
+              { id: 'TRANSFER', label: 'Transferência' }
+            ] as const).map(op => (
+              <button key={op.id} type="button" onClick={() => setModalidade(op.id)}
+                style={{
+                  flex: 1, padding: '0.45rem', borderRadius: '0.45rem', fontSize: '0.8rem', fontWeight: modalidade === op.id ? 700 : 500, cursor: 'pointer', transition: 'all 0.15s',
+                  background: modalidade === op.id ? 'var(--bg-surface)' : 'transparent',
+                  color: modalidade === op.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: 'none', boxShadow: modalidade === op.id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}>
+                {op.label}
+              </button>
+            ))}
           </div>
+
+          {modalidade === 'DEPSAC' && (
+            <>
+              <div>
+                <label className="label">Tipo de Movimento</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {(['DEPOSITO', 'SAQUE'] as const).map(t => (
+                    <button key={t} type="button" onClick={() => setTipo(t)}
+                      style={{
+                        flex: 1, padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem',
+                        background: tipo === t ? (t === 'DEPOSITO' ? 'rgba(16,185,129,0.15)' : 'rgba(244,63,94,0.15)') : 'var(--bg-surface)',
+                        borderColor: tipo === t ? (t === 'DEPOSITO' ? '#10b981' : '#f43f5e') : 'var(--border)',
+                        color: tipo === t ? (t === 'DEPOSITO' ? '#10b981' : '#f43f5e') : 'var(--text-secondary)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                      }}>
+                      {t === 'DEPOSITO' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                      {t === 'DEPOSITO' ? 'Depósito' : 'Saque'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label">Conta</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {(['CORRETORA', 'RESERVA'] as const).map(c => (
+                    <button key={c} type="button" onClick={() => setConta(c)}
+                      style={{
+                        flex: 1, padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                        background: conta === c ? 'rgba(59,130,246,0.15)' : 'var(--bg-surface)',
+                        borderColor: conta === c ? '#3b82f6' : 'var(--border)',
+                        color: conta === c ? '#3b82f6' : 'var(--text-secondary)',
+                      }}>
+                      {c === 'CORRETORA' ? '🏦 Corretora' : '💰 Reserva (R$)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {modalidade === 'TRANSFER' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.5rem', alignItems: 'flex-end', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+              <div>
+                <label className="label" style={{ fontSize: '0.7rem' }}>De Origem</label>
+                <select className="input" value={de} onChange={e => { setDe(e.target.value as any); if (e.target.value === para) setPara(para === 'CORRETORA' ? 'RESERVA' : 'CORRETORA') }}>
+                  <option value="RESERVA">Reserva BRL</option>
+                  <option value="CORRETORA">Corretora USD</option>
+                </select>
+              </div>
+              <div style={{ paddingBottom: '0.6rem', color: 'var(--text-muted)' }}><RefreshCw size={14} /></div>
+              <div>
+                <label className="label" style={{ fontSize: '0.7rem' }}>Para Destino</label>
+                <select className="input" value={para} onChange={e => { setPara(e.target.value as any); if (e.target.value === de) setDe(de === 'CORRETORA' ? 'RESERVA' : 'CORRETORA') }}>
+                  <option value="CORRETORA">Corretora USD</option>
+                  <option value="RESERVA">Reserva BRL</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="label" htmlFor="mov-usd">Valor (US$)</label>
             <input id="mov-usd" className="input" type="number" step="0.01" min="0.01" placeholder="0.00" value={valorUSD} onChange={e => setValorUSD(e.target.value)} required autoFocus />
@@ -623,8 +669,8 @@ function MovimentoModal({ dataISO, onClose, onSaved }: {
           {error && <div style={{ padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
             <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
-            <button type="submit" className={`btn ${tipo === 'DEPOSITO' ? 'btn-success' : 'btn-danger'}`} style={{ flex: 1 }} disabled={loading}>
-              {loading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Registrando...</> : `Confirmar ${tipo === 'DEPOSITO' ? 'Depósito' : 'Saque'}`}
+            <button type="submit" className={`btn ${modalidade === 'TRANSFER' ? 'btn-primary' : tipo === 'DEPOSITO' ? 'btn-success' : 'btn-danger'}`} style={{ flex: 1 }} disabled={loading}>
+              {loading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Registrando...</> : modalidade === 'TRANSFER' ? 'Transferir' : `Confirmar ${tipo === 'DEPOSITO' ? 'Depósito' : 'Saque'}`}
             </button>
           </div>
         </form>
@@ -780,19 +826,19 @@ function TradeRow({ trade, motivos, ativosOp, onMarcar }: {
           <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexWrap: 'nowrap' }}>
             {trade.status === 'ABERTA' && (
               <>
-                <button className="btn btn-success" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }} onClick={() => handleMarcar('WIN')} disabled={loading} title="WIN">
+                <button className="btn" style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)', padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleMarcar('WIN')} disabled={loading} title="Marcar WIN">
                   {loading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <><CheckCircle size={12} /> WIN</>}
                 </button>
-                <button className="btn btn-danger" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }} onClick={() => handleMarcar('LOSS')} disabled={loading} title="LOSS">
+                <button className="btn" style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.3)', padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleMarcar('LOSS')} disabled={loading} title="Marcar LOSS">
                   <XCircle size={12} /> LOSS
                 </button>
               </>
             )}
-            {/* Editar — disponível para todos os trades */}
-            <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-blue)' }} onClick={() => setShowEditar(true)} disabled={loading} title="Editar operação">
+            {/* Editar */}
+            <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--text-muted)' }} onClick={() => setShowEditar(true)} disabled={loading} title="Editar operação">
               <Pencil size={13} />
             </button>
-            {/* Excluir com confirmação */}
+            {/* Excluir */}
             {showConfirm ? (
               <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center', background: 'rgba(244,63,94,0.1)', padding: '0.15rem 0.35rem', borderRadius: '0.35rem' }}>
                 <span style={{ fontSize: '0.65rem', color: 'var(--accent-loss)', fontWeight: 600 }}>Excluir?</span>
@@ -845,6 +891,7 @@ export default function PainelDia() {
 function PainelDiaInner() {
   const { diaAberto, isLoading, fetchDiaAberto, marcarResultado, excluirDia } = usePainelStore()
   const { config, fetchConfig } = useConfigStore()
+  const { capital, fetchCapital } = useCapitalStore()
   const [motivos, setMotivos] = useState<MotivoEntrada[]>([])
   const [ativosOp, setAtivosOp] = useState<AtivoObj[]>([])
   const [temDiasAnteriores, setTemDiasAnteriores] = useState(false)
@@ -878,8 +925,9 @@ function PainelDiaInner() {
   useEffect(() => {
     fetchDiaAberto()
     fetchConfig()
+    fetchCapital()
     carregarDados()
-  }, [fetchDiaAberto, fetchConfig, carregarDados])
+  }, [fetchDiaAberto, fetchConfig, fetchCapital, carregarDados])
 
   const handleMarcar = async (tradeId: string, resultado: 'WIN' | 'LOSS') => {
     await marcarResultado(tradeId, resultado)
@@ -1029,6 +1077,7 @@ function PainelDiaInner() {
   const progressoMeta = dia.metaIdeal ? Math.min(100, Math.max(0, (resultado / dia.metaIdeal) * 100)) : 0
   const progressoMetaMaxima = dia.metaMaxima ? Math.min(100, Math.max(0, (resultado / dia.metaMaxima) * 100)) : 0
   const progressoStop = dia.stopDiario ? Math.min(100, Math.max(0, (Math.abs(Math.min(0, resultado)) / dia.stopDiario) * 100)) : 0
+  const saldoReservaUSD = capital ? capital.saldoReservaBRL / capital.cambioConsiderado : 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -1075,84 +1124,144 @@ function PainelDiaInner() {
         </div>
       )}
 
-      {/* ── KPIs Grid ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.875rem' }}>
-        <KpiCard label="Banca (Saldo Atual)" value={formatUSD(saldoAtual)} icon={DollarSign} highlight />
-        <KpiCard
-          label="Capital Inicial"
-          value={formatUSD(dia.capitalInicialReal)}
-          sub={dia.deposito !== 0 ? `Dep/Saque: ${dia.deposito >= 0 ? '+' : ''}${formatUSD(dia.deposito)}` : 'Sem dep./saque'}
-          icon={BarChart2}
-        />
-        <KpiCard
-          label="Resultado"
-          value={(resultado >= 0 ? '+' : '') + formatUSD(resultado)}
-          sub={formatPct(dia.rentabilidade)}
-          color={resultado > 0 ? 'var(--accent-win)' : resultado < 0 ? 'var(--accent-loss)' : undefined}
-          icon={resultado >= 0 ? TrendingUp : TrendingDown}
-        />
-        <KpiCard
-          label="Win / Loss"
-          value={`${dia.win}W   ${dia.loss}L`}
-          sub={dia.taxaAcerto != null ? `Taxa: ${formatPct(dia.taxaAcerto)}` : '—'}
-        />
+      {/* ── Mega-Banner de Lucro ── */}
+      <div className="card shadow-lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem 2rem', background: 'var(--bg-surface)' }}>
+        <div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Lucro do Dia</p>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem', marginTop: '0.2rem' }}>
+            <h2 style={{ margin: 0, fontSize: '3rem', fontWeight: 800, color: resultado >= 0 ? '#4ade80' : '#f43f5e', lineHeight: 1.1 }}>
+              {(resultado >= 0 ? '+' : '') + formatUSD(resultado)}
+            </h2>
+            <span style={{ fontSize: '1.4rem', fontWeight: 700, color: resultado >= 0 ? '#4ade80' : '#f43f5e', opacity: 0.8 }}>
+              {formatPct(dia.rentabilidade)}
+            </span>
+          </div>
+        </div>
+        <div style={{ padding: '1.25rem', borderRadius: '50%', background: resultado >= 0 ? 'rgba(74,222,128,0.1)' : 'rgba(244,63,94,0.1)' }}>
+          {resultado >= 0 ? <TrendingUp size={48} color="#4ade80" /> : <TrendingDown size={48} color="#f43f5e" />}
+        </div>
+      </div>
+
+      {/* ── Secondary KPIs (Watermarks) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
+        {/* Banca Corretora Atual */}
+        <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.25rem', fontWeight: 600 }}>
+              Saldo Corretora Atual
+            </p>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1 }}>
+              {formatUSD(saldoAtual)}
+            </p>
+          </div>
+          <DollarSign size={80} strokeWidth={1.5} style={{ position: 'absolute', right: '-10px', bottom: '-15px', color: 'var(--text-primary)', opacity: 0.05, zIndex: 0 }} />
+        </div>
+
+        {/* Banca Prevista (Global) */}
+        <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.25rem', fontWeight: 600 }}>
+              Banca Global
+            </p>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-blue)', margin: 0, lineHeight: 1 }}>
+              {formatUSD(capital?.bancaGlobalUSD ?? dia.capitalInicialReal)}
+            </p>
+            <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0.2rem 0 0', fontWeight: 500 }}>
+               Reserva: {formatUSD(saldoReservaUSD)}
+            </p>
+          </div>
+          <Wallet size={80} strokeWidth={1.5} style={{ position: 'absolute', right: '-10px', bottom: '-15px', color: 'var(--accent-blue)', opacity: 0.1, zIndex: 0 }} />
+        </div>
+
+        {/* Win / Loss */}
+        <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.25rem', fontWeight: 600 }}>
+              Win / Loss
+            </p>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1 }}>
+              {dia.win}W <span style={{opacity: 0.3}}>/</span> {dia.loss}L
+            </p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.2rem 0 0', fontWeight: 600 }}>
+               Taxa de Acerto: <span style={{color: 'var(--text-primary)'}}>{dia.taxaAcerto != null ? formatPct(dia.taxaAcerto) : '—'}</span>
+            </p>
+          </div>
+          <Activity size={80} strokeWidth={1.5} style={{ position: 'absolute', right: '-10px', bottom: '-15px', color: 'var(--text-primary)', opacity: 0.05, zIndex: 0 }} />
+        </div>
       </div>
 
       {/* ── Metas e Stops ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.875rem' }}>
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Metas</span>
-            <Target size={14} style={{ color: 'var(--text-muted)' }} />
+        <div className="card" style={{ padding: '1.5rem', border: '1px solid rgba(74,222,128,0.2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <span style={{ fontSize: '0.8rem', color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Progresso da Meta</span>
+            <Target size={18} color="#4ade80" />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Meta Ideal ({formatPct(config?.metaIdealPct)})</span>
-              <span style={{ fontWeight: 700, color: '#4ade80', fontSize: '0.9rem' }}>{formatUSD(dia.metaIdeal)}</span>
-            </div>
-            <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-surface)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: 3, background: '#4ade80', width: `${progressoMeta}%`, transition: 'width 0.4s ease' }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Meta Máxima ({formatPct(config?.metaMaximaPct)})</span>
-              <span style={{ fontWeight: 600, color: '#16a34a', fontSize: '0.85rem' }}>{formatUSD(dia.metaMaxima)}</span>
-            </div>
-            <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-surface)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: 3, background: '#16a34a', width: `${progressoMetaMaxima}%`, transition: 'width 0.4s ease' }} />
-            </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              <div>
-                Falta p/ Ideal:{' '}
-                <span style={{ color: resultado >= (dia.metaIdeal ?? 0) ? '#4ade80' : 'var(--text-primary)', fontWeight: 600 }}>
-                  {resultado >= (dia.metaIdeal ?? 0) ? '✓ Atingida' : formatUSD(dia.faltaParaMeta)}
-                </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Ideal ({formatPct(config?.metaIdealPct)})</span>
+                <span style={{ fontWeight: 800, color: '#4ade80', fontSize: '1rem' }}>{formatUSD(dia.metaIdeal)}</span>
               </div>
-              <div>
-                Falta p/ Máxima:{' '}
-                <span style={{ color: resultado >= (dia.metaMaxima ?? 0) ? '#16a34a' : 'var(--text-primary)', fontWeight: 600 }}>
+              <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-surface)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #22c55e, #4ade80)', width: `${progressoMeta}%`, transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Máxima ({formatPct(config?.metaMaximaPct)})</span>
+                <span style={{ fontWeight: 700, color: '#8b5cf6', fontSize: '0.9rem' }}>{formatUSD(dia.metaMaxima)}</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-surface)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #6d28d9, #8b5cf6)', width: `${progressoMetaMaxima}%`, transition: 'width 0.4s ease' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Falta p/ Ideal</p>
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: resultado >= (dia.metaIdeal ?? 0) ? '#4ade80' : 'var(--text-primary)' }}>
+                  {resultado >= (dia.metaIdeal ?? 0) ? '✓ Atingida' : formatUSD(dia.faltaParaMeta)}
+                </p>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Falta p/ Máxima</p>
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: resultado >= (dia.metaMaxima ?? 0) ? '#8b5cf6' : 'var(--text-primary)' }}>
                   {resultado >= (dia.metaMaxima ?? 0) ? '✓ Atingida' : formatUSD(Math.max(0, (dia.metaMaxima ?? 0) - resultado))}
-                </span>
+                </p>
               </div>
             </div>
           </div>
         </div>
-        <div className="card" style={{ borderColor: progressoStop > 70 ? 'rgba(244,63,94,0.4)' : undefined }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.875rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Stop Diário</span>
-            <ShieldAlert size={14} style={{ color: progressoStop > 70 ? 'var(--accent-loss)' : 'var(--text-muted)' }} />
+
+        <div className="card" style={{ padding: '1.5rem', border: progressoStop > 70 ? '1px solid rgba(244,63,94,0.4)' : '1px solid rgba(244,63,94,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <span style={{ fontSize: '0.8rem', color: progressoStop > 70 ? 'var(--accent-loss)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Stop Diário</span>
+            <ShieldAlert size={18} color={progressoStop > 70 ? 'var(--accent-loss)' : 'var(--text-muted)'} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Limite ({formatPct(config?.stopDiarioPct)})</span>
-              <span style={{ fontWeight: 700, color: 'var(--accent-loss)', fontSize: '0.9rem' }}>{formatUSD(dia.stopDiario)}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Limite ({formatPct(config?.stopDiarioPct)})</span>
+                <span style={{ fontWeight: 800, color: 'var(--accent-loss)', fontSize: '1rem' }}>{formatUSD(dia.stopDiario)}</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-surface)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 4, background: progressoStop > 70 ? 'var(--accent-loss)' : 'var(--accent-warn)', width: `${progressoStop}%`, transition: 'width 0.4s ease' }} />
+              </div>
             </div>
-            <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-surface)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', borderRadius: 3, background: progressoStop > 70 ? 'var(--accent-loss)' : 'var(--accent-warn)', width: `${progressoStop}%`, transition: 'width 0.4s ease' }} />
-            </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Consumido: <span style={{ fontWeight: 600, color: progressoStop > 70 ? 'var(--accent-loss)' : 'var(--text-primary)' }}>{progressoStop.toFixed(0)}%</span>
-              {' · '}
-              Espaço restante: <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatUSD(dia.espacoAntesDoStop)}</span>
+            
+            <div style={{ display: 'flex', gap: '1rem', marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Consumido</p>
+                <p style={{ fontSize: '1rem', fontWeight: 800, color: progressoStop > 70 ? 'var(--accent-loss)' : 'var(--text-primary)' }}>
+                  {progressoStop.toFixed(0)}%
+                </p>
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Espaço restante</p>
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {formatUSD(dia.espacoAntesDoStop)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1160,33 +1269,40 @@ function PainelDiaInner() {
 
       {/* ── Ciclos + Valores Sugeridos ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
-        <div className="card">
-          <div style={{ marginBottom: '0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Ciclos no Dia</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-            <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>{dia.ciclosRealizados}</span>
-            <span style={{ color: 'var(--text-muted)' }}>/ {config?.maxCiclosPorDia ?? 3}</span>
+        <div className="card" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <div style={{ marginBottom: '0.5rem', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Ciclos no Dia</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>{dia.ciclosRealizados}</span>
+              <span style={{ color: 'var(--text-muted)' }}>/ {config?.maxCiclosPorDia ?? 3}</span>
+            </div>
+            <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.375rem' }}>
+              {Array.from({ length: config?.maxCiclosPorDia ?? 3 }).map((_, i) => (
+                <div key={i} style={{ flex: 1, height: 6, borderRadius: 3, background: i < dia.ciclosRealizados ? 'var(--accent-blue)' : 'var(--bg-surface)', transition: 'background 0.3s' }} />
+              ))}
+            </div>
+            {todosCiclosUsados && <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--accent-orange)' }}>⚠ Limite atingido</div>}
           </div>
-          <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.375rem' }}>
-            {Array.from({ length: config?.maxCiclosPorDia ?? 3 }).map((_, i) => (
-              <div key={i} style={{ flex: 1, height: 6, borderRadius: 3, background: i < dia.ciclosRealizados ? 'var(--accent-blue)' : 'var(--bg-surface)', transition: 'background 0.3s' }} />
-            ))}
-          </div>
-          {todosCiclosUsados && <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--accent-orange)' }}>⚠ Limite de ciclos atingido</div>}
+          <RefreshCw size={80} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-15px', color: 'var(--accent-blue)', opacity: 0.05, zIndex: 0 }} />
         </div>
-        <div className="card">
-          <div style={{ marginBottom: '0.75rem', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Valores Sugeridos</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-            {[
-              { label: 'ENTR', value: dia.valorENTR, color: '#3b82f6' },
-              { label: 'MG1', value: dia.valorMG1, color: '#f59e0b' },
-              ...(config?.mg2Habilitado ? [{ label: 'MG2', value: dia.valorMG2, color: '#f43f5e' }] : []),
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '0.5rem', background: 'var(--bg-surface)' }}>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color, marginBottom: '0.25rem', letterSpacing: '0.05em' }}>{label}</div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{formatUSD(value)}</div>
-              </div>
-            ))}
+        
+        <div className="card" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <div style={{ marginBottom: '0.75rem', fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Valores Sugeridos</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+              {[
+                { label: 'ENTR', value: dia.valorENTR, color: '#3b82f6' },
+                { label: 'MG1', value: dia.valorMG1, color: '#f59e0b' },
+                ...(config?.mg2Habilitado ? [{ label: 'MG2', value: dia.valorMG2, color: '#f43f5e' }] : []),
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ textAlign: 'center', padding: '0.6rem 0.5rem', borderRadius: '0.5rem', background: 'var(--bg-surface)', border: `1px solid ${color}22` }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, color, marginBottom: '0.25rem', letterSpacing: '0.05em' }}>{label}</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>{formatUSD(value)}</div>
+                </div>
+              ))}
+            </div>
           </div>
+          <DollarSign size={80} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-15px', color: 'var(--text-primary)', opacity: 0.03, zIndex: 0 }} />
         </div>
       </div>
 

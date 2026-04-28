@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
@@ -11,9 +8,248 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================
-// Enums
-// ============================================================
+model User {
+  id             String            @id @default(uuid())
+  email          String            @unique
+  passwordHash   String
+  role           Role              @default(user)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  aportes        AportePlanejado[]
+  ativos         Ativo[]
+  ciclos         Ciclo[]
+  configuration  Configuration?
+  movimentos     DepositoSaque[]
+  errosDia       ErroDia[]
+  monthlyReports MonthlyReport[]
+  motivos        MotivoEntrada[]
+  saques         SaquePlanejado[]
+  trades         Trade[]
+  tradingDays    TradingDay[]
+  weeklyReports  WeeklyReport[]
+}
+
+model Configuration {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  metaIdealPct        Float    @default(0.02)
+  metaMaximaPct       Float    @default(0.03)
+  stopDiarioPct       Float    @default(0.06)
+  riscoMaxCicloPct    Float    @default(0.06)
+  pctSugeridaEntrada  Float    @default(0.02)
+  fatorMG1            Float    @default(2)
+  fatorMG2            Float    @default(2)
+  mg2Habilitado       Boolean  @default(false)
+  maxEntradasPorCiclo Int      @default(3)
+  maxCiclosPorDia     Int      @default(3)
+  cambioCompra        Float    @default(5.20)
+  cambioVenda         Float    @default(4.80)
+  retornoConservador  Float    @default(0.20)
+  retornoRealista     Float    @default(0.40)
+  retornoAgressivo    Float    @default(0.60)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  aporteMes           String?
+  aporteValor         Float?
+  saquesMesInicio     String?
+  saque               Float?
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AportePlanejado {
+  id        String   @id @default(uuid())
+  userId    String
+  mes       String
+  valor     Float
+  dia       Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mes])
+}
+
+model SaquePlanejado {
+  id        String   @id @default(uuid())
+  userId    String
+  mes       String
+  valor     Float
+  dia       Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mes])
+}
+
+model TradingDay {
+  id                    String    @id @default(uuid())
+  userId                String
+  date                  DateTime  @db.Date
+  capitalInicial        Float
+  deposito              Float     @default(0)
+  depositoReserva       Float     @default(0)
+  capitalInicialReal    Float
+  capitalFinal          Float?
+  resultadoDia          Float?
+  rentabilidade         Float?
+  status                DayStatus @default(OPERANDO)
+  usouMG2               Boolean   @default(false)
+  numeroTrades          Int       @default(0)
+  win                   Int       @default(0)
+  loss                  Int       @default(0)
+  taxaAcerto            Float?
+  ciclosRealizados      Int       @default(0)
+  respeitouLimiteCiclos Boolean?
+  emocional             String?
+  seguiuSetup           Boolean?
+  isClosed              Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  errosDia              String[]  @default([])
+  bancaGlobal           Float?    @default(0)
+  ciclos                Ciclo[]
+  trades                Trade[]
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+model Ciclo {
+  id             String      @id @default(uuid())
+  userId         String
+  tradingDayId   String
+  numero         Int
+  status         CicloStatus @default(ABERTO)
+  totalInvestido Float       @default(0)
+  resultado      Float?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  tradingDay     TradingDay  @relation(fields: [tradingDayId], references: [id], onDelete: Cascade)
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades         Trade[]
+}
+
+model Trade {
+  id           String         @id @default(uuid())
+  userId       String
+  tradingDayId String
+  cicloId      String
+  tipo         TradeType
+  ativo        String
+  valor        Float
+  motivoId     String?
+  motivoOutro  String?
+  status       TradeStatus    @default(ABERTA)
+  resultado    Float?
+  horario      DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  ciclo        Ciclo          @relation(fields: [cicloId], references: [id], onDelete: Cascade)
+  motivo       MotivoEntrada? @relation(fields: [motivoId], references: [id])
+  tradingDay   TradingDay     @relation(fields: [tradingDayId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MotivoEntrada {
+  id        String   @id @default(uuid())
+  userId    String
+  nome      String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades    Trade[]
+}
+
+model Ativo {
+  id        String   @id @default(uuid())
+  userId    String
+  nome      String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payout    Float    @default(0.85)
+  ordem     Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, nome])
+}
+
+model DepositoSaque {
+  id             String        @id @default(uuid())
+  userId         String
+  data           DateTime
+  tipo           MovimentoTipo
+  valorUSD       Float
+  cambio         Float
+  valorBRL       Float
+  mes            String
+  observacao     String?
+  faixaPlanejada String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  conta          String        @default("CORRETORA")
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ErroDia {
+  id        String        @id @default(uuid())
+  userId    String
+  nome      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  gravidade GravidadeErro @default(GRAVE)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WeeklyReport {
+  id            String   @id @default(uuid())
+  userId        String
+  semana        Int
+  ano           Int
+  dataInicial   DateTime
+  dataFinal     DateTime
+  diasOperados  Int      @default(0)
+  diasPositivos Int      @default(0)
+  diasNegativos Int      @default(0)
+  totalWin      Int      @default(0)
+  totalLoss     Int      @default(0)
+  taxaAcerto    Float    @default(0)
+  lucroTotal    Float    @default(0)
+  melhorDia     Float    @default(0)
+  piorDia       Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, semana, ano])
+}
+
+model MonthlyReport {
+  id                 String   @id @default(uuid())
+  userId             String
+  mes                String
+  dataBase           DateTime
+  diasOperados       Int      @default(0)
+  diasPositivos      Int      @default(0)
+  diasNegativos      Int      @default(0)
+  capitalInicial     Float    @default(0)
+  vlDepositadoSacado Float    @default(0)
+  lucroTotal         Float    @default(0)
+  capitalFinal       Float    @default(0)
+  rentabMedia        Float    @default(0)
+  rentabTotal        Float    @default(0)
+  retornoClassif     String   @default("CONSERVADOR")
+  taxaAcertoMedia    Float    @default(0)
+  maiorGain          Float    @default(0)
+  maiorLoss          Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mes])
+}
 
 enum Role {
   admin
@@ -56,259 +292,4 @@ enum TradeStatus {
 enum MovimentoTipo {
   DEPOSITO
   SAQUE
-}
-
-// ============================================================
-// Models
-// ============================================================
-
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(user)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  configuration  Configuration?
-  tradingDays    TradingDay[]
-  trades         Trade[]
-  ciclos         Ciclo[]
-  motivos        MotivoEntrada[]
-  ativos         Ativo[]
-  movimentos     DepositoSaque[]
-  weeklyReports  WeeklyReport[]
-  monthlyReports MonthlyReport[]
-  aportes        AportePlanejado[]
-  saques         SaquePlanejado[]
-  errosDia       ErroDia[]
-}
-
-model Configuration {
-  id                  String  @id @default(uuid())
-  userId              String  @unique
-  metaIdealPct        Float   @default(0.02)
-  metaMaximaPct       Float   @default(0.03)
-  stopDiarioPct       Float   @default(0.06)
-  riscoMaxCicloPct    Float   @default(0.06)
-  pctSugeridaEntrada  Float   @default(0.02)
-  fatorMG1            Float   @default(2)
-  fatorMG2            Float   @default(2)
-  mg2Habilitado       Boolean @default(false)
-  maxEntradasPorCiclo Int     @default(3)
-  maxCiclosPorDia     Int     @default(3)
-  cambioCompra        Float   @default(5.20)
-  cambioVenda         Float   @default(4.80)
-  retornoConservador  Float   @default(0.20)
-  retornoRealista     Float   @default(0.40)
-  retornoAgressivo    Float   @default(0.60)
-  aporteValor         Float?
-  aporteMes           String?   // mantido apenas para migration — será removido
-  saque               Float?
-  saquesMesInicio     String?   // formato: "2026-06"
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model AportePlanejado {
-  id        String   @id @default(uuid())
-  userId    String
-  mes       String   // formato: "2026-06"
-  valor     Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, mes])
-}
-
-model SaquePlanejado {
-  id        String   @id @default(uuid())
-  userId    String
-  mes       String   // formato: "2026-06"
-  valor     Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, mes])
-}
-
-model TradingDay {
-  id                    String    @id @default(uuid())
-  userId                String
-  date                  DateTime  @db.Date
-  capitalInicial        Float
-  deposito              Float     @default(0)
-  capitalInicialReal    Float
-  capitalFinal          Float?
-  resultadoDia          Float?
-  rentabilidade         Float?
-  status                DayStatus @default(OPERANDO)
-  usouMG2               Boolean   @default(false)
-  numeroTrades          Int       @default(0)
-  win                   Int       @default(0)
-  loss                  Int       @default(0)
-  taxaAcerto            Float?
-  ciclosRealizados      Int       @default(0)
-  respeitouLimiteCiclos Boolean?
-  emocional             String?
-  seguiuSetup           Boolean?
-  errosDia              String[]  @default([])
-  isClosed              Boolean   @default(false)
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trades Trade[]
-  ciclos Ciclo[]
-
-  @@unique([userId, date])
-}
-
-model Ciclo {
-  id             String      @id @default(uuid())
-  userId         String
-  tradingDayId   String
-  numero         Int
-  status         CicloStatus @default(ABERTO)
-  totalInvestido Float       @default(0)
-  resultado      Float?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tradingDay TradingDay @relation(fields: [tradingDayId], references: [id], onDelete: Cascade)
-  trades     Trade[]
-}
-
-model Trade {
-  id           String      @id @default(uuid())
-  userId       String
-  tradingDayId String
-  cicloId      String
-  tipo         TradeType
-  ativo        String
-  valor        Float
-  motivoId     String?
-  motivoOutro  String?
-  status       TradeStatus @default(ABERTA)
-  resultado    Float?
-  horario      DateTime    @default(now())
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tradingDay TradingDay     @relation(fields: [tradingDayId], references: [id], onDelete: Cascade)
-  ciclo      Ciclo          @relation(fields: [cicloId], references: [id], onDelete: Cascade)
-  motivo     MotivoEntrada? @relation(fields: [motivoId], references: [id])
-}
-
-model MotivoEntrada {
-  id        String   @id @default(uuid())
-  userId    String
-  nome      String
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trades Trade[]
-}
-
-model Ativo {
-  id        String   @id @default(uuid())
-  userId    String
-  nome      String   // ex: "BTC/USDT", "ETH/USDT"
-  ativo     Boolean  @default(true)
-  payout    Float    @default(0.85)
-  ordem     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, nome])
-}
-
-model DepositoSaque {
-  id             String        @id @default(uuid())
-  userId         String
-  data           DateTime
-  tipo           MovimentoTipo
-  valorUSD       Float
-  cambio         Float
-  valorBRL       Float
-  mes            String
-  observacao     String?
-  faixaPlanejada String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model ErroDia {
-  id        String   @id @default(uuid())
-  userId    String
-  nome      String
-  gravidade GravidadeErro @default(GRAVE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model WeeklyReport {
-  id            String   @id @default(uuid())
-  userId        String
-  semana        Int
-  ano           Int
-  dataInicial   DateTime
-  dataFinal     DateTime
-  diasOperados  Int      @default(0)
-  diasPositivos Int      @default(0)
-  diasNegativos Int      @default(0)
-  totalWin      Int      @default(0)
-  totalLoss     Int      @default(0)
-  taxaAcerto    Float    @default(0)
-  lucroTotal    Float    @default(0)
-  melhorDia     Float    @default(0)
-  piorDia       Float    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, semana, ano])
-}
-
-model MonthlyReport {
-  id                 String   @id @default(uuid())
-  userId             String
-  mes                String
-  dataBase           DateTime
-  diasOperados       Int      @default(0)
-  diasPositivos      Int      @default(0)
-  diasNegativos      Int      @default(0)
-  capitalInicial     Float    @default(0)
-  vlDepositadoSacado Float    @default(0)
-  lucroTotal         Float    @default(0)
-  capitalFinal       Float    @default(0)
-  rentabMedia        Float    @default(0)
-  rentabTotal        Float    @default(0)
-  retornoClassif     String   @default("CONSERVADOR")
-  taxaAcertoMedia    Float    @default(0)
-  maiorGain          Float    @default(0)
-  maiorLoss          Float    @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, mes])
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { Activity, DollarSign, Target, TrendingUp, TrendingDown, Calendar, ArrowRight, Wallet, BarChart2 } from 'lucide-react'
 import { useAnalyticsStore } from '../../store/analyticsStore'
+import { useCapitalStore } from '../../store/capitalStore'
 import IndicadorMes from '../../components/IndicadorMes/IndicadorMes'
 
 const formatCurrency = (val: number) => {
@@ -21,9 +22,11 @@ const formatDate = (dateStr: string) => {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { dashboardData, isLoading, error, fetchDashboard } = useAnalyticsStore()
+  const { capital, fetchCapital } = useCapitalStore()
 
   useEffect(() => {
     fetchDashboard()
+    if (!capital) fetchCapital()
   }, [])
 
   if (isLoading && !dashboardData) {
@@ -118,22 +121,38 @@ export default function Dashboard() {
               )}
             </div>
           ))}
+          {/* Evolução de Capital Extras (Aportes/Saques) */}
+          {p.capital !== undefined && (p.aportes > 0 || p.saques > 0) && (
+            <div className="mt-2 pt-2 border-t border-[var(--border)] flex flex-col gap-0.5">
+              {p.aportes > 0 && (
+                <p className="text-xs text-[var(--text-muted)] flex justify-between items-center gap-4">
+                  Aportes: <span className="font-semibold text-[var(--accent-win)]">+{formatCurrency(p.aportes)}</span>
+                </p>
+              )}
+              {p.saques > 0 && (
+                <p className="text-xs text-[var(--text-muted)] flex justify-between items-center gap-4">
+                  Saques: <span className="font-semibold text-[var(--accent-loss)]">-{formatCurrency(p.saques)}</span>
+                </p>
+              )}
+            </div>
+          )}
+
           {isDiario && p.totalTrades > 0 && (
             <div className="mt-2 pt-2 border-t border-[var(--border)] flex flex-col gap-0.5">
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-muted)] flex justify-between items-center gap-4">
                 Operações: <span className="font-semibold text-[var(--text-primary)]">{p.totalTrades}</span>
               </p>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-muted)] flex justify-between items-center gap-4">
                 Assertividade: <span className="font-semibold text-[var(--accent-warn)]">{(p.taxaAcerto * 100).toFixed(1)}%</span>
               </p>
             </div>
           )}
           {isSemanal && totalOpsSemanal > 0 && (
             <div className="mt-2 pt-2 border-t border-[var(--border)] flex flex-col gap-0.5">
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-muted)] flex justify-between items-center gap-4">
                 Operações: <span className="font-semibold text-[var(--text-primary)]">{totalOpsSemanal}</span>
               </p>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-muted)] flex justify-between items-center gap-4">
                 Assertividade: <span className="font-semibold text-[var(--accent-warn)]">{(p.taxaAcerto * 100).toFixed(1)}%</span>
               </p>
             </div>
@@ -172,185 +191,208 @@ export default function Dashboard() {
           <div>
             <span style={{ fontWeight: 600, color: '#fbbf24' }}>Dia atual em andamento </span>
             <span style={{ color: 'var(--text-muted)' }}>
-              ({formatDiaAndamento(diaEmAndamento.data)}) — não incluído nos resultados acima
+              ({formatDiaAndamento(diaEmAndamento.data)}) — não incluído nos resultados abaixo
             </span>
           </div>
         </div>
       )}
 
-      {/* Card de destaque: Banca Atual */}
+      {/* Indicador de Desempenho do Mês Atual (Movido para o topo a pedido) */}
+      {desempenhoMesAtual && (
+        <div className="mb-4">
+          <IndicadorMes
+            nivel={desempenhoMesAtual.nivel}
+            rentabilidade={desempenhoMesAtual.rentabilidade}
+            capitalInicio={desempenhoMesAtual.capitalInicio}
+            capitalAtual={desempenhoMesAtual.capitalAtual}
+            diasOperados={desempenhoMesAtual.diasOperados}
+            compact
+          />
+        </div>
+      )}
 
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border-light)] p-6" style={{
-        background: 'linear-gradient(135deg, rgba(59,130,246,0.15) 0%, rgba(16,185,129,0.08) 100%)',
-        boxShadow: '0 0 40px rgba(59,130,246,0.08)',
-      }}>
-        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 80% 50%, #3b82f6 0%, transparent 60%)' }} />
-        <div className="relative flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-1">Banca Atual</p>
-            <p className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--accent-win)', textShadow: '0 0 30px rgba(16,185,129,0.3)' }}>
-              {formatCurrency(indicadores.ultimoCapital)}
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-2">
-              Capital do último dia fechado
+      {/* Header Metrics */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        
+        {/* Banca Global - HIGH HIGHLIGHT */}
+        <div className="flex-[2] relative overflow-hidden rounded-2xl border border-blue-500/30 p-8 flex flex-col justify-center" style={{
+          background: 'linear-gradient(135deg, rgba(8,14,33,0.8) 0%, rgba(13,25,56,0.9) 100%)',
+          boxShadow: '0 0 50px rgba(59,130,246,0.15)',
+        }}>
+          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 100% 0%, #3b82f6 0%, transparent 60%)' }} />
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet size={18} className="text-blue-400" />
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-400">Banca Total Consolidada</p>
+            </div>
+            <div className="flex items-center gap-4 mb-2">
+              <p className="text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-0" style={{ textShadow: '0 0 40px rgba(59,130,246,0.4)' }}>
+                {capital ? formatCurrency(capital.bancaGlobalUSD) : '...'}
+              </p>
+            </div>
+            <p className="text-xs font-medium text-blue-200/60 mt-1 tracking-widest uppercase">
+              BASE DE CÁLCULO PARA METAS E RISCO GLOBAL
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-[var(--text-muted)]">Lucro total:</span>
-              <span className={`font-bold ${indicadores.lucroTotal >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}`}>
-                {indicadores.lucroTotal >= 0 ? '+' : ''}{formatCurrency(indicadores.lucroTotal)}
-              </span>
-              {indicadores.crescimentoPct !== 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${indicadores.crescimentoPct >= 0 ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}>
-                  {indicadores.crescimentoPct >= 0 ? '+' : ''}{(indicadores.crescimentoPct * 100).toFixed(1)}%
-                </span>
-              )}
+        </div>
+
+        {/* Sub-Contas Stack */}
+        <div className="flex-1 flex flex-col gap-4">
+          
+          {/* Corretora */}
+          <div className="flex-1 card relative overflow-hidden flex flex-col justify-center p-5">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <BarChart2 size={40} className="text-blue-500" />
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-[var(--text-muted)]">Assertividade:</span>
-              <span className="font-bold text-[var(--text-primary)]">{(indicadores.taxaAcertoGeral * 100).toFixed(1)}%</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-[var(--text-muted)]">Dias operados:</span>
-              <span className="font-bold text-[var(--text-primary)]">{indicadores.diasOperados} ({indicadores.diasPositivos} positivos)</span>
-            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-1">Mercado (Corretora)</p>
+            <p className="text-2xl font-bold text-blue-400">
+              {capital ? formatCurrency(capital.capitalCorretoraUSD) : '...'}
+            </p>
+            <p className="text-[10px] font-medium text-[var(--text-muted)] mt-1 uppercase tracking-wide">
+              Operacional em Dólar
+            </p>
           </div>
+
+          {/* Reserva */}
+          <div className="flex-1 card relative overflow-hidden flex flex-col justify-center p-5">
+            <div className="absolute top-0 right-0 p-4 opacity-5">
+              <DollarSign size={40} className="text-emerald-500" />
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)] mb-1">Caixa (Reserva BRL)</p>
+            <div className="flex items-center gap-3">
+              <p className="text-2xl font-bold text-emerald-400">
+                {capital ? formatCurrency(capital.saldoReservaBRL / capital.cambioConsiderado) : '...'}
+              </p>
+              <div className="h-6 w-px bg-[var(--border)]"></div>
+              <p className="text-sm font-bold text-[var(--text-secondary)]">
+                R$ {capital ? capital.saldoReservaBRL.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}
+              </p>
+            </div>
+            <p className="text-[10px] font-medium text-[var(--text-muted)] mt-1.5 uppercase tracking-wide">
+              Câmbio Utilizado: <span className="text-[var(--text-primary)] font-bold">R$ {capital?.cambioConsiderado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </p>
+          </div>
+          
         </div>
       </div>
 
-      {/* KPIs Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Card: Lucro Total */}
-        <div className="card card-hover relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <DollarSign size={48} className="text-[var(--accent-blue)]" />
-          </div>
-          <p className="text-[var(--text-secondary)] text-sm font-medium mb-1">Lucro Total</p>
-          <p className={`text-2xl font-bold ${indicadores.lucroTotal >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}`}>
-            {formatCurrency(indicadores.lucroTotal)}
+      {/* Stat Bar (Painel 2) - KPIs Críticos Consolidados */}
+      <div className="flex flex-col md:flex-row flex-wrap gap-8 items-center bg-[var(--bg-surface)] border border-[var(--border-light)] rounded-2xl p-6 mb-6 shadow-sm">
+        
+        {/* Lucro Histórico */}
+        <div className="flex-1 flex flex-col min-w-[200px]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+            <TrendingUp size={12} className="text-[var(--accent-blue)]" /> Lucro Histórico
           </p>
-          {indicadores.crescimentoPct !== 0 && (
-            <p className="text-xs text-[var(--text-muted)] mt-1">
-              Crescimento:{' '}
-              <span className={indicadores.crescimentoPct >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}>
-                {indicadores.crescimentoPct >= 0 ? '+' : ''}{(indicadores.crescimentoPct * 100).toFixed(1)}% sobre capital inicial
-              </span>
+          <div className="flex items-end gap-3 mb-1">
+            <p className={`text-3xl font-extrabold tracking-tight ${indicadores.lucroTotal >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}`}>
+              {(indicadores.lucroTotal >= 0 ? '+' : '')}{formatCurrency(indicadores.lucroTotal)}
             </p>
-          )}
-        </div>
-
-        {/* Card: Dias Operados */}
-        <div className="card card-hover relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Calendar size={48} className="text-[var(--text-primary)]" />
-          </div>
-          <p className="text-[var(--text-secondary)] text-sm font-medium mb-1">Dias Operados</p>
-          <div>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {indicadores.diasOperados}
-              <span className="text-sm font-normal text-[var(--text-muted)] ml-2 border-l border-[var(--border)] pl-2">
-                {indicadores.diasPositivos} positivos ({(indicadores.pctDiasPositivos * 100).toFixed(1)}%)
-              </span>
-            </p>
-            <div className="mt-2 flex h-1.5 w-full bg-[var(--bg-surface)] rounded-full overflow-hidden">
-              <div className="bg-[var(--accent-win)]" style={{ width: `${indicadores.pctDiasPositivos * 100}%` }} />
-            </div>
-            {indicadores.maiorSequenciaPositiva > 0 && (
-              <p className="text-xs text-[var(--text-muted)] mt-1.5">
-                Maior seq. positiva: <span className="text-[var(--accent-win)] font-semibold">{indicadores.maiorSequenciaPositiva}d</span>
-                {indicadores.maiorSequenciaNegativa > 0 && (
-                  <> · Maior seq. negativa: <span className="text-[var(--accent-loss)] font-semibold">{indicadores.maiorSequenciaNegativa}d</span></>
-                )}
-              </p>
+            {indicadores.crescimentoPct !== 0 && (
+              <div className={`px-2 py-1 rounded-md text-sm font-black mb-1 flex items-center gap-1 ${
+                indicadores.crescimentoPct >= 0 
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' 
+                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+              }`}>
+                {indicadores.crescimentoPct >= 0 ? '+' : ''}{(indicadores.crescimentoPct * 100).toFixed(2)}%
+              </div>
             )}
           </div>
-
         </div>
 
-        {/* Card: Recordes e Totais */}
-        <div className="card card-hover flex flex-col justify-center">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-[var(--text-secondary)]">Melhor Dia</span>
-            <span className="text-sm font-bold text-[var(--accent-win)] flex items-center gap-1">
-              <TrendingUp size={14} />
-              {formatCurrency(indicadores.maiorGain)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center border-t border-[var(--border)] pt-2 mb-2">
-            <span className="text-sm text-[var(--text-secondary)]">Pior Dia</span>
-            <span className={`text-sm font-bold flex items-center gap-1 ${indicadores.maiorLoss >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}`}>
-              <TrendingDown size={14} />
-              {formatCurrency(indicadores.maiorLoss)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center border-t border-[var(--border)] pt-2 mb-2">
-            <span className="text-sm text-[var(--text-secondary)]">Total Ganhos</span>
-            <span className="text-sm font-bold text-[var(--accent-win)]">+{formatCurrency(indicadores.totalGanhos)}</span>
-          </div>
-          <div className="flex justify-between items-center border-t border-[var(--border)] pt-2">
-            <span className="text-sm text-[var(--text-secondary)]">Total Perdas</span>
-            <span className="text-sm font-bold text-[var(--accent-loss)]">{formatCurrency(indicadores.totalPerdas)}</span>
-          </div>
-        </div>
+        <div className="hidden md:block w-px h-16 bg-[var(--border)]"></div>
 
-        {/* Card: Taxa de Acerto Geral */}
-        <div className="card card-hover relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Target size={48} className="text-[var(--accent-warn)]" />
-          </div>
-          <p className="text-[var(--text-secondary)] text-sm font-medium mb-1">Assertividade (Global)</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)]">
+        {/* Assertividade Global */}
+        <div className="flex-1 flex flex-col min-w-[150px]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+            <Target size={12} className="text-[var(--accent-warn)]" /> Assertividade
+          </p>
+          <p className="text-3xl font-bold text-[var(--text-primary)]">
             {(indicadores.taxaAcertoGeral * 100).toFixed(1)}%
           </p>
         </div>
 
-        {/* Card: Média de Lucro por Dia */}
-        <div className="card card-hover relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <BarChart2 size={48} className="text-[var(--accent-blue)]" />
-          </div>
-          <p className="text-[var(--text-secondary)] text-sm font-medium mb-1">Média por Dia</p>
-          <p className={`text-2xl font-bold ${indicadores.mediaLucroDia >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}`}>
+        <div className="hidden md:block w-px h-16 bg-[var(--border)]"></div>
+
+        {/* Média por Dia */}
+        <div className="flex-1 flex flex-col min-w-[150px]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+            <BarChart2 size={12} className="text-[var(--text-muted)]" /> Média / Dia
+          </p>
+          <p className={`text-3xl font-bold ${indicadores.mediaLucroDia >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}`}>
             {formatCurrency(indicadores.mediaLucroDia)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            Rentabilidade média:{' '}
+          <p className="text-xs text-[var(--text-muted)] mt-1 font-medium">
             <span className={indicadores.mediaRentabilidade >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'}>
-              {(indicadores.mediaRentabilidade * 100).toFixed(2)}% / dia
+              {(indicadores.mediaRentabilidade * 100).toFixed(2)}%
             </span>
           </p>
         </div>
 
-        {/* Card: Aportes e Saques */}
-        <div className="card card-hover relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Wallet size={48} className="text-[var(--accent-warn)]" />
+        <div className="hidden md:block w-px h-16 bg-[var(--border)]"></div>
+
+        {/* Dias Operados compact */}
+        <div className="flex-1 flex flex-col min-w-[180px]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+            <Calendar size={12} /> Dias Operados
+          </p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">
+            {indicadores.diasOperados} totais
+          </p>
+          <div className="mt-2 flex h-1 w-full bg-[var(--bg-hover)] rounded-full overflow-hidden">
+            <div className="bg-[var(--accent-win)]" style={{ width: `${indicadores.pctDiasPositivos * 100}%` }} />
           </div>
-          <p className="text-[var(--text-secondary)] text-sm font-medium mb-2">Movimentações Realizadas</p>
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-[var(--text-muted)]">Aportes</span>
-            <span className="text-sm font-bold text-[var(--accent-win)]">+{formatCurrency(indicadores.totalAportes)}</span>
-          </div>
-          <div className="flex justify-between items-center border-t border-[var(--border)] pt-1">
-            <span className="text-sm text-[var(--text-muted)]">Saques</span>
-            <span className="text-sm font-bold text-[var(--accent-loss)]">-{formatCurrency(indicadores.totalSaques)}</span>
-          </div>
+          <p className="text-[11px] text-[var(--text-muted)] mt-1.5 font-medium">
+            <span className="text-[var(--accent-win)] font-bold">{indicadores.diasPositivos} positivos</span> ({(indicadores.pctDiasPositivos * 100).toFixed(1)}%)
+          </p>
         </div>
+
       </div>
 
-      {/* Indicador de Desempenho do Mês Atual */}
-      {desempenhoMesAtual && (
-        <IndicadorMes
-          nivel={desempenhoMesAtual.nivel}
-          rentabilidade={desempenhoMesAtual.rentabilidade}
-          capitalInicio={desempenhoMesAtual.capitalInicio}
-          capitalAtual={desempenhoMesAtual.capitalAtual}
-          diasOperados={desempenhoMesAtual.diasOperados}
-          compact
-        />
-      )}
+      {/* Painel 3: Raio-X Secundário (Tabelas) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        
+        {/* Recordes */}
+        <div className="card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)] mb-4">Métricas de Fundo</p>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] mb-1">Melhor Dia</p>
+              <p className="text-sm font-bold text-[var(--accent-win)]">+{formatCurrency(indicadores.maiorGain)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] mb-1">Pior Dia</p>
+              <p className="text-sm font-bold text-[var(--accent-loss)]">{formatCurrency(indicadores.maiorLoss)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] mb-1">Total Ganhos Brutos</p>
+              <p className="text-sm font-bold text-[var(--accent-win)]">+{formatCurrency(indicadores.totalGanhos)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-secondary)] mb-1">Total Perdas Brutas</p>
+              <p className="text-sm font-bold text-[var(--accent-loss)]">-{formatCurrency(Math.abs(indicadores.totalPerdas))}</p>
+            </div>
+          </div>
+        </div>
 
+        {/* Movimentações de Caixa */}
+        <div className="card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)] mb-4">Fluxo de Caixa Externo (Operacional)</p>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center bg-[var(--bg-hover)] p-3 rounded-lg">
+              <span className="text-sm font-medium text-[var(--text-secondary)] flex items-center gap-2"><TrendingUp size={14} className="text-[var(--accent-win)]"/> Aportes Recebidos</span>
+              <span className="text-sm font-bold text-[var(--accent-win)]">+{formatCurrency(indicadores.totalAportes)}</span>
+            </div>
+            <div className="flex justify-between items-center bg-[var(--bg-hover)] p-3 rounded-lg">
+              <span className="text-sm font-medium text-[var(--text-secondary)] flex items-center gap-2"><TrendingDown size={14} className="text-[var(--accent-loss)]"/> Saques Realizados</span>
+              <span className="text-sm font-bold text-[var(--accent-loss)]">-{formatCurrency(indicadores.totalSaques)}</span>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+
+      {/* Seção de Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico: Evolução do Capital */}
         <div className="card col-span-1 lg:col-span-2 shadow-lg">
@@ -444,8 +486,8 @@ export default function Dashboard() {
                 />
                 <Tooltip content={<CustomTooltipContent />} cursor={{ fill: 'var(--bg-hover)' }} />
                 <Bar dataKey="lucroTotal" name="Resultado" radius={[4, 4, 0, 0]}>
-                  {semanasComLabel.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.lucroTotal >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)'} />
+                  {semanasComLabel.map((_: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill="var(--accent-blue)" />
                   ))}
                 </Bar>
               </BarChart>

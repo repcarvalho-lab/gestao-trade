@@ -10,6 +10,7 @@ import { formatUSD, formatBRL, formatDate } from '../../lib/format'
 // ─── Tipos ────────────────────────────────────────────────────
 interface Movimento {
   id: string; data: string; tipo: 'DEPOSITO' | 'SAQUE'
+  conta: 'CORRETORA' | 'RESERVA'
   valorUSD: number; cambio: number; valorBRL: number
   mes: string; observacao: string | null; faixaPlanejada: string | null
 }
@@ -40,6 +41,7 @@ function NovoMovimentoModal({ onClose, onSaved, cambioCompra, cambioVenda }: {
 }) {
   const hoje = new Date().toISOString().split('T')[0]
   const [tipo, setTipo] = useState<'DEPOSITO' | 'SAQUE'>('DEPOSITO')
+  const [conta, setConta] = useState<'CORRETORA' | 'RESERVA'>('CORRETORA')
   const [data, setData] = useState(hoje)
   const [valorUSD, setValorUSD] = useState('')
   const [cambio, setCambio] = useState(String(cambioCompra.toFixed(2)))
@@ -61,7 +63,7 @@ function NovoMovimentoModal({ onClose, onSaved, cambioCompra, cambioVenda }: {
     if (isNaN(vCambio) || vCambio <= 0) { setError('Informe um câmbio válido.'); return }
     setSaving(true)
     try {
-      await api.post('/movimentos', { data, tipo, valorUSD: vUSD, cambio: vCambio, observacao: observacao || undefined })
+      await api.post('/movimentos', { data, tipo, conta, valorUSD: vUSD, cambio: vCambio, observacao: observacao || undefined })
       onSaved()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
@@ -90,6 +92,22 @@ function NovoMovimentoModal({ onClose, onSaved, cambioCompra, cambioVenda }: {
                 {t === 'DEPOSITO' ? 'Depósito' : 'Saque'}
               </button>
             ))}
+          </div>
+          <div>
+            <label className="label">Conta Destino/Origem</label>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {(['CORRETORA', 'RESERVA'] as const).map(c => (
+                <button key={c} type="button" onClick={() => setConta(c)}
+                  style={{
+                    flex: 1, padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                    background: conta === c ? 'rgba(59,130,246,0.15)' : 'var(--bg-surface)',
+                    borderColor: conta === c ? '#3b82f6' : 'var(--border)',
+                    color: conta === c ? '#3b82f6' : 'var(--text-secondary)',
+                  }}>
+                  {c === 'CORRETORA' ? '🏦 Corretora' : '💰 Reserva'}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="label" htmlFor="mov-data">Data</label>
@@ -156,6 +174,15 @@ function LinhaMovimento({ mov, onUpdate, onDelete }: { mov: Movimento; onUpdate:
           <span style={{ fontWeight: 600, color: isDeposito ? 'var(--accent-win)' : 'var(--accent-loss)', fontSize: '0.82rem' }}>{isDeposito ? 'Depósito' : 'Saque'}</span>
         </div>
       </td>
+      <td>
+        <span style={{ 
+          fontSize: '0.7rem', fontWeight: 600, padding: '0.2rem 0.4rem', borderRadius: '4px',
+          background: mov.conta === 'CORRETORA' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
+          color: mov.conta === 'CORRETORA' ? '#3b82f6' : '#10b981'
+        }}>
+          {mov.conta === 'CORRETORA' ? '🏦 Corretora' : '💰 Reserva'}
+        </span>
+      </td>
       <td style={{ fontWeight: 700, color: isDeposito ? 'var(--accent-win)' : 'var(--accent-loss)' }}>{isDeposito ? '+' : '-'}{formatUSD(mov.valorUSD)}</td>
       <td style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{mov.cambio.toFixed(2)}</td>
       <td style={{ fontWeight: 600, color: isDeposito ? 'var(--accent-win)' : 'var(--accent-loss)' }}>{isDeposito ? '+' : '-'}{formatBRL(mov.valorBRL)}</td>
@@ -187,12 +214,14 @@ function LinhaMovimento({ mov, onUpdate, onDelete }: { mov: Movimento; onUpdate:
 
 // ─── Planner genérico (usado para Aportes e Saques) ──────────
 function Planner({ endpoint, cor }: { endpoint: 'aportes' | 'saques'; cor: 'win' | 'loss' }) {
-  const [itens, setItens] = useState<Array<{ id: string; mes: string; valor: number }>>([])
+  const [itens, setItens] = useState<Array<{ id: string; mes: string; valor: number; dia: number }>>([])
   const [loading, setLoading] = useState(true)
   const [novoMes, setNovoMes] = useState('')
   const [novoValor, setNovoValor] = useState('')
+  const [novoDia, setNovoDia] = useState('1')
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [editandoValor, setEditandoValor] = useState('')
+  const [editandoDia, setEditandoDia] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const mesesOpcoes = gerarOpcoesMeses(24)
@@ -211,13 +240,15 @@ function Planner({ endpoint, cor }: { endpoint: 'aportes' | 'saques'; cor: 'win'
 
   const handleAdicionar = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!novoMes || !novoValor) { setError('Selecione o mês e informe o valor.'); return }
+    if (!novoMes || !novoValor || !novoDia) { setError('Preencha todos os campos.'); return }
     const val = parseFloat(novoValor)
+    const dia = parseInt(novoDia, 10)
     if (isNaN(val) || val <= 0) { setError('Valor inválido.'); return }
+    if (isNaN(dia) || dia < 1 || dia > 31) { setError('Dia inválido.'); return }
     setSaving(true)
     try {
-      await api.post(`/${endpoint}`, { mes: novoMes, valor: val })
-      setNovoMes(''); setNovoValor(''); setError(''); carregar()
+      await api.post(`/${endpoint}`, { mes: novoMes, valor: val, dia })
+      setNovoMes(''); setNovoValor(''); setNovoDia('1'); setError(''); carregar()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
       setError(e?.response?.data?.error ?? 'Erro ao adicionar.')
@@ -226,9 +257,11 @@ function Planner({ endpoint, cor }: { endpoint: 'aportes' | 'saques'; cor: 'win'
 
   const handleEditar = async (id: string) => {
     const val = parseFloat(editandoValor)
+    const dia = parseInt(editandoDia, 10)
     if (isNaN(val) || val <= 0) { setError('Valor inválido.'); return }
+    if (isNaN(dia) || dia < 1 || dia > 31) { setError('Dia inválido.'); return }
     setSaving(true)
-    try { await api.patch(`/${endpoint}/${id}`, { valor: val }); setEditandoId(null); setError(''); carregar() }
+    try { await api.patch(`/${endpoint}/${id}`, { valor: val, dia }); setEditandoId(null); setError(''); carregar() }
     catch { setError('Erro ao salvar.') }
     finally { setSaving(false) }
   }
@@ -245,16 +278,20 @@ function Planner({ endpoint, cor }: { endpoint: 'aportes' | 'saques'; cor: 'win'
       <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label className="label" style={{ marginBottom: '0.25rem' }}>Mês</label>
-          <select className="input" style={{ width: 160 }} value={novoMes} onChange={e => setNovoMes(e.target.value)} id={`novo-${endpoint}-mes`}>
+          <select className="input" style={{ width: 140 }} value={novoMes} onChange={e => setNovoMes(e.target.value)} id={`novo-${endpoint}-mes`}>
             <option value="">— Selecione —</option>
             {mesesOpcoes.filter(o => !mesesJaUsados.includes(o.value)).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="label" style={{ marginBottom: '0.25rem' }}>Valor (US$)</label>
-          <input className="input" type="number" step="0.01" min="0.01" placeholder="0.00" style={{ width: 140 }} value={novoValor} onChange={e => setNovoValor(e.target.value)} id={`novo-${endpoint}-valor`} />
+          <label className="label" style={{ marginBottom: '0.25rem' }}>Dia</label>
+          <input className="input" type="number" min="1" max="31" style={{ width: 70 }} value={novoDia} onChange={e => setNovoDia(e.target.value)} id={`novo-${endpoint}-dia`} />
         </div>
-        <button type="submit" className="btn btn-primary" disabled={saving || !novoMes || !novoValor} style={{ whiteSpace: 'nowrap' }}>
+        <div>
+          <label className="label" style={{ marginBottom: '0.25rem' }}>Valor (US$)</label>
+          <input className="input" type="number" step="0.01" min="0.01" placeholder="0.00" style={{ width: 130 }} value={novoValor} onChange={e => setNovoValor(e.target.value)} id={`novo-${endpoint}-valor`} />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={saving || !novoMes || !novoValor || !novoDia} style={{ whiteSpace: 'nowrap' }}>
           {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
         </button>
       </form>
@@ -272,11 +309,23 @@ function Planner({ endpoint, cor }: { endpoint: 'aportes' | 'saques'; cor: 'win'
           {itens.map(item => (
             <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem 0.875rem', borderRadius: '0.625rem', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               <div style={{ minWidth: 80, fontWeight: 600, color, fontSize: '0.875rem' }}>{mesParaLabel(item.mes)}</div>
-              <div style={{ flex: 1 }}>
-                {editandoId === item.id
-                  ? <input className="input" type="number" step="0.01" min="0.01" value={editandoValor} onChange={e => setEditandoValor(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleEditar(item.id)} autoFocus style={{ maxWidth: 160 }} />
-                  : <span style={{ fontWeight: 700, color, fontSize: '0.9rem' }}>{formatUSD(item.valor)}</span>}
-              </div>
+              
+              {editandoId === item.id ? (
+                <div style={{ display: 'flex', gap: '0.5rem', flex: 1, alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dia:</span>
+                  <input className="input" type="number" min="1" max="31" value={editandoDia} onChange={e => setEditandoDia(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleEditar(item.id)} style={{ width: 60 }} />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Valor:</span>
+                  <input className="input" type="number" step="0.01" min="0.01" value={editandoValor} onChange={e => setEditandoValor(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleEditar(item.id)} autoFocus style={{ maxWidth: 120 }} />
+                </div>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, background: 'var(--bg-surface)', padding: '2px 6px', borderRadius: '4px' }}>
+                    Dia {item.dia}
+                  </span>
+                  <span style={{ fontWeight: 700, color, fontSize: '0.9rem' }}>{formatUSD(item.valor)}</span>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '0.375rem' }}>
                 {editandoId === item.id ? (
                   <>
@@ -285,7 +334,7 @@ function Planner({ endpoint, cor }: { endpoint: 'aportes' | 'saques'; cor: 'win'
                   </>
                 ) : (
                   <>
-                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => { setEditandoId(item.id); setEditandoValor(String(item.valor)) }} title="Editar"><Pencil size={13} /></button>
+                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => { setEditandoId(item.id); setEditandoValor(String(item.valor)); setEditandoDia(String(item.dia)) }} title="Editar"><Pencil size={13} /></button>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }} onClick={() => handleDeletar(item.id)} title="Remover"><X size={13} /></button>
                   </>
                 )}
@@ -354,9 +403,6 @@ export default function DepositosSaques() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <DollarSign size={18} style={{ color: 'var(--accent-win)' }} />
-          </div>
           <div>
             <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Depósitos e Saques</h1>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>Movimentações financeiras e planejamento</p>
@@ -397,37 +443,60 @@ export default function DepositosSaques() {
       {/* Aba: Movimentos */}
       {tab === 'movimentos' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-            {[
-              { icon: <ArrowDownCircle size={10} />, label: 'Total Depositado (global)', val: formatUSD(globalDepositos), color: 'var(--accent-win)' },
-              { icon: <ArrowUpCircle size={10} />, label: 'Total Sacado (global)', val: formatUSD(globalSaques), color: 'var(--accent-loss)' },
-              { icon: null, label: 'Saldo Líquido Aportado', val: (globalLiquidoUSD >= 0 ? '+' : '') + formatUSD(globalLiquidoUSD), color: globalLiquidoUSD >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' },
-            ].map(k => (
-              <div key={k.label} className="card" style={{ padding: '1rem' }}>
-                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  {k.icon}{k.label}
-                </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: k.color }}>{k.val}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+            {/* Banner Global (Visão Histórica Total) */}
+            <div className="card shadow-lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', background: 'var(--bg-surface)' }}>
+              <div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Saldo Líquido Aportado (Histórico)</p>
+                <h2 style={{ margin: '0.2rem 0 0', fontSize: '2rem', fontWeight: 800, color: globalLiquidoUSD >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)', lineHeight: 1.1 }}>
+                  {globalLiquidoUSD >= 0 ? '+' : ''}{formatUSD(globalLiquidoUSD)}
+                </h2>
               </div>
-            ))}
-          </div>
-
-          {filtrados.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.625rem' }}>
-              {[
-                { label: `Entradas — ${mesLabel(mesAtivo)}`, val: formatUSD(totalDepositos), sub: formatBRL(totalDepBRL), color: 'var(--accent-win)' },
-                { label: `Saídas — ${mesLabel(mesAtivo)}`, val: formatUSD(totalSaques), sub: formatBRL(totalSaqBRL), color: 'var(--accent-loss)' },
-                { label: 'Líquido do mês (US$)', val: (liquidoUSD >= 0 ? '+' : '') + formatUSD(liquidoUSD), sub: '', color: liquidoUSD >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' },
-                { label: 'Movimentos', val: String(filtrados.length), sub: '', color: 'var(--text-primary)' },
-              ].map(k => (
-                <div key={k.label} style={{ padding: '0.75rem', borderRadius: '0.625rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{k.label}</div>
-                  <div style={{ fontWeight: 700, color: k.color, fontSize: '0.95rem' }}>{k.val}</div>
-                  {k.sub && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>{k.sub}</div>}
+              <div style={{ display: 'flex', gap: '1.5rem', textAlign: 'right' }}>
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Depositado</p>
+                  <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-win)' }}>{formatUSD(globalDepositos)}</p>
                 </div>
-              ))}
+                <div>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Sacado</p>
+                  <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-loss)' }}>{formatUSD(globalSaques)}</p>
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Stat Bar (Filtro do Mês) */}
+            {filtrados.length > 0 && (
+              <div className="card" style={{ display: 'flex', alignItems: 'center', padding: '0.875rem 1.5rem', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 120 }}>
+                  <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{mesLabel(mesAtivo)}</span>
+                </div>
+
+                <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
+                
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ textAlign: 'left' }}>
+                    <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Entradas Mês</p>
+                    <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-win)' }}>{formatUSD(totalDepositos)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>({formatBRL(totalDepBRL)})</span></p>
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Saídas Mês</p>
+                    <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-loss)' }}>{formatUSD(totalSaques)} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>({formatBRL(totalSaqBRL)})</span></p>
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Líquido Mês</p>
+                    <p style={{ fontSize: '1rem', fontWeight: 700, color: liquidoUSD >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
+                      {liquidoUSD >= 0 ? '+' : ''}{formatUSD(liquidoUSD)}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Movimentações</p>
+                    <p style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>{filtrados.length}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {loading ? (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>
@@ -438,7 +507,7 @@ export default function DepositosSaques() {
           ) : (
             <div className="table-container">
               <table>
-                <thead><tr><th>Data</th><th>Tipo</th><th>Valor (US$)</th><th>Câmbio</th><th>Valor (R$)</th><th>Observação</th><th></th></tr></thead>
+                <thead><tr><th>Data</th><th>Tipo</th><th>Conta</th><th>Valor (US$)</th><th>Câmbio</th><th>Valor (R$)</th><th>Observação</th><th></th></tr></thead>
                 <tbody>{filtrados.map(m => <LinhaMovimento key={m.id} mov={m} onUpdate={carregar} onDelete={carregar} />)}</tbody>
               </table>
             </div>

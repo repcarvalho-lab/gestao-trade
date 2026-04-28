@@ -29,3 +29,36 @@ export async function deletar(req: Request, res: Response) {
   await movimentosService.deletarMovimento(String(req.params.id), req.user!.userId)
   res.status(204).send()
 }
+
+export async function transferir(req: Request, res: Response) {
+  // A transferência saca de uma conta e deposita na outra atomicamente
+  const { de, para, valorUSD, cambio, data, observacao } = req.body
+
+  if (!de || !para || de === para) {
+    return res.status(400).json({ error: 'Contas de origem e destino inválidas ou iguais' })
+  }
+
+  // Crio saque na origem
+  const saque = await movimentosService.criarMovimento({
+    userId: req.user!.userId,
+    tipo: 'SAQUE',
+    conta: de,
+    valorUSD,
+    cambio,
+    data: new Date(data),
+    observacao: observacao ? `[Transf. para ${para}] ${observacao}` : `[Transf. para ${para}]`,
+  })
+
+  // Crio deposito no destino
+  const deposito = await movimentosService.criarMovimento({
+    userId: req.user!.userId,
+    tipo: 'DEPOSITO',
+    conta: para,
+    valorUSD,
+    cambio,
+    data: new Date(data),
+    observacao: observacao ? `[Transf. de ${de}] ${observacao}` : `[Transf. de ${de}]`,
+  })
+
+  res.status(201).json({ saque, deposito })
+}

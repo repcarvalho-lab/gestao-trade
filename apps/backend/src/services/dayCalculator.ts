@@ -52,12 +52,12 @@ export function calcularResultadoTrade(
 
 export function calcularStatusDia(
   resultadoMomento: number,
-  capitalInicialReal: number,
+  baseCapital: number,
   config: Configuration,
 ): { status: DayStatus; stopProximo: boolean; pctStopConsumido: number } {
-  const metaIdeal = calcularMetaIdeal(capitalInicialReal, config)
-  const metaMaxima = calcularMetaMaxima(capitalInicialReal, config)
-  const stopDiario = calcularStopDiario(capitalInicialReal, config)
+  const metaIdeal = calcularMetaIdeal(baseCapital, config)
+  const metaMaxima = calcularMetaMaxima(baseCapital, config)
+  const stopDiario = calcularStopDiario(baseCapital, config)
 
   let status: DayStatus
 
@@ -107,7 +107,9 @@ export function recalcularDia(
   tradingDay: TradingDay,
   trades: Trade[],
   config: Configuration,
+  bancaGlobalUSD?: number,
 ): DiaRecalculado {
+  const baseCapital = bancaGlobalUSD ?? tradingDay.capitalInicialReal
   const tradesFinalizados = trades.filter(
     (t) => t.status === 'WIN' || t.status === 'LOSS',
   )
@@ -129,13 +131,13 @@ export function recalcularDia(
 
   const { status, stopProximo, pctStopConsumido } = calcularStatusDia(
     resultadoDia,
-    tradingDay.capitalInicialReal,
+    baseCapital,
     config,
   )
 
-  const metaIdeal = calcularMetaIdeal(tradingDay.capitalInicialReal, config)
-  const metaMaxima = calcularMetaMaxima(tradingDay.capitalInicialReal, config)
-  const stopDiario = calcularStopDiario(tradingDay.capitalInicialReal, config)
+  const metaIdeal = calcularMetaIdeal(baseCapital, config)
+  const metaMaxima = calcularMetaMaxima(baseCapital, config)
+  const stopDiario = calcularStopDiario(baseCapital, config)
 
   const faltaParaMeta = Math.max(0, metaIdeal - resultadoDia)
   const espacoAntesDoStop = Math.max(0, stopDiario + resultadoDia)
@@ -184,8 +186,8 @@ export interface ProjecaoAnual {
 interface ProjecaoParams {
   capitalAtual: number
   config: Configuration
-  aportesPorMes?: Record<string, number>   // formato: "2026-06" → valor
-  saquesPorMes?: Record<string, number>
+  aportesPorMes?: Record<string, { valor: number; dia: number }>   // formato: "2026-06" → { valor, dia }
+  saquesPorMes?: Record<string, { valor: number; dia: number }>
   mesInicio: string   // "2026-04"
   meses?: number      // default 12
 }
@@ -201,19 +203,38 @@ function calcularCenario(
   retornoMensal: number,
   mesInicio: string,
   meses: number,
-  aportesPorMes: Record<string, number>,
-  saquesPorMes: Record<string, number>,
+  aportesPorMes: Record<string, { valor: number; dia: number }>,
+  saquesPorMes: Record<string, { valor: number; dia: number }>,
 ): MesProjecao[] {
   const resultado: MesProjecao[] = []
   let capital = capitalAtual
 
   for (let i = 0; i < meses; i++) {
     const mes = addMeses(mesInicio, i)
-    const aporte = aportesPorMes[mes] ?? 0
-    const saquePlanejado = saquesPorMes[mes] ?? 0
+    const aporteData = aportesPorMes[mes]
+    const saqueData = saquesPorMes[mes]
+    
+    const aporte = aporteData?.valor ?? 0
+    const aporteDia = aporteData?.dia ?? 1
+    
+    const saquePlanejado = saqueData?.valor ?? 0
+    const saqueDia = saqueData?.dia ?? 1
 
     const capitalComAporte = capital + aporte
-    const capitalBruto = capitalComAporte * (1 + retornoMensal)
+    
+    // Prorrateio: Juros sobre o capital inicial + Juros sobre o aporte (proporcional ao tempo restante) - Juros sobre o saque (proporcional ao tempo restante)
+    const [anoStr, mesStr] = mes.split('-')
+    const diasNoMes = new Date(Number(anoStr), Number(mesStr), 0).getDate()
+    
+    // +1 para que dia 1 receba juros de 100% do mês.
+    const ratioAporte = Math.max(0, diasNoMes - aporteDia + 1) / diasNoMes
+    const ratioSaque = Math.max(0, diasNoMes - saqueDia + 1) / diasNoMes
+    
+    const jurosBase = capital * retornoMensal
+    const jurosAporte = aporte * retornoMensal * ratioAporte
+    const jurosSaque = saquePlanejado * retornoMensal * ratioSaque
+    
+    const capitalBruto = capitalComAporte + jurosBase + jurosAporte - jurosSaque
 
     // Sempre aplica o saque planejado no cálculo (mesmo que deixe o capital cair)
     const capitalFinal = capitalBruto - saquePlanejado

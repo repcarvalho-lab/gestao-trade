@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Calendar, ChevronRight,
+  ChevronRight,
   X, Loader2, CheckCircle, XCircle, Search, SlidersHorizontal, Trash2,
   RotateCcw,
 } from 'lucide-react'
@@ -10,12 +10,14 @@ import {
   formatUSD, formatPct, formatDate, formatTime,
   valueClass, statusLabel, statusClass,
 } from '../../lib/format'
+import { useCapitalStore } from '../../store/capitalStore'
 
 // ─── Tipos ────────────────────────────────────────────────────
 interface DiaResumo {
   id: string
   date: string
   capitalInicialReal: number
+  bancaGlobal: number | null
   capitalFinal: number | null
   resultadoDia: number | null
   rentabilidade: number | null
@@ -48,6 +50,7 @@ interface DiaDetalhe {
   id: string
   date: string
   capitalInicialReal: number
+  bancaGlobal: number | null
   capitalFinal: number | null
   resultadoDia: number | null
   rentabilidade: number | null
@@ -230,12 +233,30 @@ function DetalheModal({ diaId, onClose, onUpdate }: {
             {/* KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem', marginBottom: '1.25rem' }}>
               {[
-                { label: 'Capital Inicial', value: formatUSD(dia.capitalInicialReal), color: 'var(--text-primary)' },
-                { label: 'Capital Final', value: formatUSD(dia.capitalFinal), color: 'var(--text-primary)' },
+                { label: 'Banca Global', value: formatUSD(dia.bancaGlobal ?? dia.capitalInicialReal), color: 'var(--text-primary)' },
+                { label: 'Cap. Corretora', value: formatUSD(dia.capitalInicialReal), color: 'var(--text-primary)' },
                 { label: 'Resultado', value: (isPos ? '+' : '') + formatUSD(resultado), color: isPos ? 'var(--accent-win)' : 'var(--accent-loss)' },
-                { label: 'Rentabilidade', value: formatPct(dia.rentabilidade), color: isPos ? 'var(--accent-win)' : 'var(--accent-loss)' },
+                { label: 'Rentab. Global', value: formatPct(dia.rentabilidade), color: isPos ? 'var(--accent-win)' : 'var(--accent-loss)' },
                 { label: 'Win / Loss', value: `${dia.win}W  ${dia.loss}L`, color: 'var(--text-primary)' },
-                { label: 'Dep./Saque', value: dia.deposito !== 0 ? (dia.deposito >= 0 ? '+' : '') + formatUSD(dia.deposito) : '—', color: dia.deposito > 0 ? 'var(--accent-win)' : dia.deposito < 0 ? 'var(--accent-loss)' : 'var(--text-muted)' },
+                { 
+                  label: 'Dep./Saque', 
+                  value: (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      {dia.deposito !== 0 && (
+                        <div style={{ color: dia.deposito > 0 ? 'var(--accent-win)' : 'var(--accent-loss)', fontSize: '0.8rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>CORR:</span> {(dia.deposito >= 0 ? '+' : '') + formatUSD(dia.deposito)}
+                        </div>
+                      )}
+                      {((dia as any).depositoReserva || 0) !== 0 && (
+                        <div style={{ color: (dia as any).depositoReserva > 0 ? 'var(--accent-win)' : 'var(--accent-loss)', fontSize: '0.8rem' }}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>RES:</span> {((dia as any).depositoReserva >= 0 ? '+' : '') + formatUSD((dia as any).depositoReserva)}
+                        </div>
+                      )}
+                      {dia.deposito === 0 && ((dia as any).depositoReserva || 0) === 0 && '—'}
+                    </div>
+                  ),
+                  color: 'inherit' 
+                },
               ].map(k => (
                 <div key={k.label} style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>{k.label}</div>
@@ -379,14 +400,11 @@ export default function ControleDiario() {
   const totalWin = diasFiltrados.reduce((s, d) => s + d.win, 0)
   const totalLoss = diasFiltrados.reduce((s, d) => s + d.loss, 0)
   const taxaAcerto = totalWin + totalLoss > 0 ? totalWin / (totalWin + totalLoss) : null
-  const mediaDiaria = totalDias > 0 ? resultadoAcumulado / totalDias : null
   const seguiuSetupCount = diasFiltrados.filter(d => d.seguiuSetup === true).length
 
-  // Global bankroll usando o dia mais recente (independente do filtro de mês selecionado)
-  const diaMaisRecente = dias.length > 0 ? dias[0] : null
-  const bancaAtual = diaMaisRecente
-    ? (diaMaisRecente.capitalFinal ?? (diaMaisRecente.capitalInicialReal + (diaMaisRecente.resultadoDia ?? 0)))
-    : null
+  // Banca Global real-time
+  const { capital } = useCapitalStore()
+  const bancaAtual = capital?.bancaGlobalUSD ?? null
 
   if (loading) {
     return (
@@ -404,9 +422,6 @@ export default function ControleDiario() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Calendar size={18} style={{ color: 'var(--accent-blue)' }} />
-          </div>
           <div>
             <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700 }}>Controle Diário</h1>
             <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
@@ -436,58 +451,82 @@ export default function ControleDiario() {
         </div>
       </div>
 
-      {/* KPIs do mês */}
+      {/* KPIs do mês enxutos (Stat Bar) */}
       {totalDias > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.75rem' }}>
-          <div className="card" style={{ textAlign: 'center', padding: '0.875rem', border: '1px solid var(--accent-blue)', background: 'var(--bg-surface)' }}>
-            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-blue)', marginBottom: '0.35rem', fontWeight: 700 }}>
-              Banca Atual
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          {/* Main Banner: Banca Global atual desvinculada do Mês */}
+          <div className="card shadow-lg" style={{ 
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+            padding: '1.25rem 1.5rem', background: 'var(--bg-surface)' 
+          }}>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Patrimônio Consolidado</p>
+              <h2 style={{ margin: 0, fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+                {bancaAtual != null ? formatUSD(bancaAtual) : '—'}
+              </h2>
             </div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {bancaAtual != null ? formatUSD(bancaAtual) : '—'}
-            </div>
-          </div>
-          <div className="card" style={{ textAlign: 'center', padding: '0.875rem' }}>
-            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-              <SlidersHorizontal size={10} style={{ display: 'inline', marginRight: 4 }} />Dias
-            </div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{totalDias}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              <span style={{ color: 'var(--accent-win)' }}>+{diasPositivos}</span>{' / '}<span style={{ color: 'var(--accent-loss)' }}>-{diasNegativos}</span>
-            </div>
-          </div>
-          <div className="card" style={{ textAlign: 'center', padding: '0.875rem' }}>
-            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Resultado</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: resultadoAcumulado >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
-              {resultadoAcumulado >= 0 ? '+' : ''}{formatUSD(resultadoAcumulado)}
-            </div>
-            {mediaDiaria != null && (
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                média{' '}
-                <span style={{ color: mediaDiaria >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)', fontWeight: 600 }}>
-                  {mediaDiaria >= 0 ? '+' : ''}{formatUSD(mediaDiaria)}
-                </span>
-                /dia
+            <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end' }}>
+              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Composição</p>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ background: 'var(--bg-hover)', padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: '1px solid var(--border)', textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>Corretora</p>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{capital ? formatUSD(capital.capitalCorretoraUSD) : '—'}</p>
+                </div>
+                <div style={{ background: 'var(--bg-hover)', padding: '0.3rem 0.6rem', borderRadius: '0.4rem', border: '1px solid var(--border)', textAlign: 'right' }}>
+                  <p style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>Reserva</p>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{capital ? formatUSD(capital.bancaGlobalUSD - capital.capitalCorretoraUSD) : '—'}</p>
+                </div>
               </div>
-            )}
-          </div>
-          <div className="card" style={{ textAlign: 'center', padding: '0.875rem' }}>
-            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Operações</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              <span style={{ color: 'var(--accent-win)' }}>{totalWin}W</span>{' / '}<span style={{ color: 'var(--accent-loss)' }}>{totalLoss}L</span>
             </div>
           </div>
-          <div className="card" style={{ textAlign: 'center', padding: '0.875rem' }}>
-            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Assertividade</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: taxaAcerto != null && taxaAcerto >= 0.6 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
-              {taxaAcerto != null ? formatPct(taxaAcerto, 0) : '—'}
+
+          {/* Stat Bar (Filtros do mês) */}
+          <div className="card" style={{ display: 'flex', alignItems: 'center', padding: '0.875rem 1.25rem', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <SlidersHorizontal size={14} style={{ color: 'var(--text-muted)' }} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Mês Atual: {mesLabel(mes)}</span>
             </div>
-          </div>
-          <div className="card" style={{ textAlign: 'center', padding: '0.875rem' }}>
-            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Disciplina</div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--accent-blue)' }}>{seguiuSetupCount}/{totalDias}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              {totalDias > 0 ? `${Math.round(seguiuSetupCount / totalDias * 100)}%` : '—'}
+
+            <div style={{ width: '1px', height: '24px', background: 'var(--border)' }}></div>
+            
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Dias Operados</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{totalDias}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}><span style={{ color: 'var(--accent-win)' }}>+{diasPositivos}</span> / <span style={{ color: 'var(--accent-loss)' }}>-{diasNegativos}</span></span>
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Resultado</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700, color: resultadoAcumulado >= 0 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
+                  {resultadoAcumulado >= 0 ? '+' : ''}{formatUSD(resultadoAcumulado)}
+                </p>
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Operações</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <span style={{ color: 'var(--accent-win)' }}>{totalWin}W</span>{' / '}<span style={{ color: 'var(--accent-loss)' }}>{totalLoss}L</span>
+                </p>
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Assertividade</p>
+                <p style={{ fontSize: '1.1rem', fontWeight: 700, color: taxaAcerto != null && taxaAcerto >= 0.6 ? 'var(--accent-win)' : 'var(--accent-loss)' }}>
+                  {taxaAcerto != null ? formatPct(taxaAcerto, 0) : '—'}
+                </p>
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>Disciplina</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem', justifyItems: 'center' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-blue)' }}>{seguiuSetupCount}/{totalDias}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{totalDias > 0 ? `${Math.round(seguiuSetupCount / totalDias * 100)}%` : '—'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -506,8 +545,8 @@ export default function ControleDiario() {
             <thead>
               <tr>
                 <th>Data</th>
-                <th>Capital Inicial</th>
-                <th>Capital Final</th>
+                <th title="Banca Global no início do dia">Banca Global</th>
+                <th title="Capital da Corretora no início do dia">Corretora</th>
                 <th>Resultado</th>
                 <th>Rent.</th>
                 <th>Dep./Saque</th>
@@ -530,8 +569,8 @@ export default function ControleDiario() {
                         {!d.isClosed && <span className="badge badge-warn" style={{ fontSize: '0.6rem' }}>Aberto</span>}
                       </div>
                     </td>
-                    <td>{formatUSD(d.capitalInicialReal)}</td>
-                    <td>{d.capitalFinal != null ? formatUSD(d.capitalFinal) : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatUSD(d.bancaGlobal ?? d.capitalInicialReal)}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatUSD(d.capitalInicialReal)}</td>
                     <td className={valueClass(res)} style={{ fontWeight: 700 }}>
                       {d.resultadoDia != null ? (isPos ? '+' : '') + formatUSD(d.resultadoDia) : '—'}
                     </td>
@@ -539,8 +578,25 @@ export default function ControleDiario() {
                       {d.rentabilidade != null ? formatPct(d.rentabilidade) : '—'}
                     </td>
                     {/* Coluna Dep./Saque */}
-                    <td style={{ fontWeight: 600, fontSize: '0.83rem' }} className={valueClass(d.deposito)}>
-                      {d.deposito !== 0 ? (d.deposito > 0 ? '+' : '') + formatUSD(d.deposito) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    <td style={{ fontWeight: 600, fontSize: '0.83rem', padding: '0.4rem' }}>
+                      {d.deposito === 0 && ((d as any).depositoReserva || 0) === 0 ? (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', alignItems: 'flex-start' }}>
+                          {d.deposito !== 0 && (
+                            <span className={valueClass(d.deposito)} style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, padding: '0 0.15rem', border: '1px solid var(--border)', borderRadius: '3px' }}>C</span>
+                              {(d.deposito > 0 ? '+' : '') + formatUSD(d.deposito)}
+                            </span>
+                          )}
+                          {((d as any).depositoReserva || 0) !== 0 && (
+                            <span className={valueClass((d as any).depositoReserva)} style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, padding: '0 0.15rem', border: '1px solid var(--border)', borderRadius: '3px' }}>R</span>
+                              {((d as any).depositoReserva > 0 ? '+' : '') + formatUSD((d as any).depositoReserva)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                       <span style={{ color: 'var(--accent-win)', fontWeight: 600 }}>{d.win}W</span>{' '}

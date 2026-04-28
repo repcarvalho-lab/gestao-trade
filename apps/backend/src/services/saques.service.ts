@@ -8,24 +8,27 @@ export async function listarSaques(userId: string) {
   })
 }
 
-export async function criarSaque(userId: string, mes: string, valor: number) {
+export async function criarSaque(userId: string, mes: string, valor: number, dia: number = 1) {
   const existe = await prisma.saquePlanejado.findUnique({
     where: { userId_mes: { userId, mes } },
   })
   if (existe) throw new AppError(`Já existe um saque planejado para ${mes}.`, 409)
 
   return prisma.saquePlanejado.create({
-    data: { userId, mes, valor },
+    data: { userId, mes, valor, dia },
   })
 }
 
-export async function atualizarSaque(id: string, userId: string, valor: number) {
+export async function atualizarSaque(id: string, userId: string, valor?: number, dia?: number) {
   const saque = await prisma.saquePlanejado.findFirst({ where: { id, userId } })
   if (!saque) throw new AppError('Saque não encontrado.', 404)
 
   return prisma.saquePlanejado.update({
     where: { id },
-    data: { valor },
+    data: {
+      ...(valor !== undefined && { valor }),
+      ...(dia !== undefined && { dia })
+    },
   })
 }
 

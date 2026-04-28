@@ -11,6 +11,7 @@ export async function criar(req: Request, res: Response) {
     req.user!.userId,
     req.body.mes,
     Number(req.body.valor),
+    req.body.dia !== undefined ? Number(req.body.dia) : undefined,
   )
   res.status(201).json(aporte)
 }
@@ -19,7 +20,8 @@ export async function atualizar(req: Request, res: Response) {
   const aporte = await aportesService.atualizarAporte(
     String(req.params.id),
     req.user!.userId,
-    Number(req.body.valor),
+    req.body.valor !== undefined ? Number(req.body.valor) : undefined,
+    req.body.dia !== undefined ? Number(req.body.dia) : undefined,
   )
   res.json(aporte)
 }

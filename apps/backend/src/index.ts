@@ -8,7 +8,7 @@ import { router } from './routes'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
-const PORT = 4001 // Forçado pois o proxy TCP/Edge do Railway travou nesta porta
+const PORT = parseInt(process.env.PORT || '4001', 10)
 
 // ── Middlewares ──────────────────────────────────────────────
 app.use(

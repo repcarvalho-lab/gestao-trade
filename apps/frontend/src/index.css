@@ -56,7 +56,7 @@ body {
 .status-operando    { color: var(--text-secondary); }
 .status-fechado     { color: var(--accent-blue); }
 .status-meta-ideal  { color: var(--accent-win); }
-.status-meta-maxima { color: #059669; }
+.status-meta-maxima { color: #8b5cf6; }
 .status-atencao          { color: var(--accent-warn); }
 .status-stop             { color: var(--accent-loss); }
 .status-meta-nao-atingida { color: #94a3b8; }

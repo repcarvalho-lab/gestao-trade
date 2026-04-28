@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma'
+import { getCapitalStatus } from './capital.service'
 
 export async function getDashboard(userId: string) {
   const dias = await prisma.tradingDay.findMany({
@@ -88,10 +89,48 @@ export async function getDashboard(userId: string) {
       maiorSequenciaNegativa: 0,
     }
   } else {
-    const capitalInicio = diasMesAtual[0].capitalInicialReal
-    const capitalFimAtual = diasMesAtual[diasMesAtual.length - 1].capitalFinal ?? capitalInicio
+    // 1. Precisamos da Banca Global exatamente no início do mês
+    // Para simplificar, podemos pegar o capitalInicial do 1º dia como saldo da corretora
+    const capCorretoraInicioMes = diasMesAtual[0].capitalInicialReal
+    
+    // Calcular as movimentações da Reserva até ANTES desse mês para achar a Reserva Inicial do Mês
+    const movsReservaAntes = await prisma.depositoSaque.findMany({
+      where: { userId, conta: 'RESERVA', data: { lt: inicioMesAtual } } 
+    })
+    const saldoReservaAntesBRL = movsReservaAntes.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0)
+    const capReservaInicioMes = saldoReservaAntesBRL / (config?.cambioCompra || 5.0)
+
+    const capitalInicioGlobal = capCorretoraInicioMes + capReservaInicioMes
+
+    // 2. Calcular o Peso Ponderado (Time-Weighted) dos Fluxos de Caixa DENTRO do mês atual
+    // Buscamos aportes e saques de todas as contas que aconteceram neste mês
+    const movsMesAtual = await prisma.depositoSaque.findMany({
+      where: { userId, data: { gte: inicioMesAtual } }
+    })
+    
+    const diasNoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate()
+    let pesoNet = 0
+    let capitalFimAtual = capitalInicioGlobal
+
+    for (const mov of movsMesAtual) {
+      const isDeposit = mov.tipo === 'DEPOSITO'
+      const effect = isDeposit ? mov.valorUSD : -mov.valorUSD
+      
+      const diaMov = mov.data.getUTCDate()
+      const diasRestantes = Math.max(0, diasNoMes - diaMov)
+      const ratio = diasRestantes / diasNoMes
+      
+      pesoNet += effect * ratio
+      capitalFimAtual += effect // O saldo final óbvio soma o valor absoluto do fluxo
+    }
+
     const lucroMes = diasMesAtual.reduce((acc, d) => acc + (d.resultadoDia ?? 0), 0)
-    const rentabilidade = capitalInicio > 0 ? lucroMes / capitalInicio : 0
+    capitalFimAtual += lucroMes // Somar o lucro gerado ao capital fim
+
+    // O verdadeiro Capital Médio Investido durante o mês
+    const capitalMedio = capitalInicioGlobal + pesoNet
+
+    const rentabilidade = capitalMedio > 0 ? lucroMes / capitalMedio : 0
 
     const retCons = config?.retornoConservador ?? 0.20
     const retReal = config?.retornoRealista ?? 0.40
@@ -114,7 +153,7 @@ export async function getDashboard(userId: string) {
     desempenhoMesAtual = {
       nivel,
       rentabilidade,
-      capitalInicio,
+      capitalInicio: capitalInicioGlobal,
       capitalAtual: capitalFimAtual,
       diasOperados: diasMesAtual.length,
       diasPositivos: diasPositivosMes,
@@ -123,23 +162,45 @@ export async function getDashboard(userId: string) {
     }
   }
 
+  const capStatus = await getCapitalStatus(userId)
+  const reservaAtualUSD = capStatus.bancaGlobalUSD - capStatus.capitalCorretoraUSD
+
+  // Mapear movimentos por data para o gráfico
+  const movPorData: Record<string, { aportes: number, saques: number }> = {}
+  for (const m of movimentos) {
+    const dStr = m.data.toISOString().split('T')[0]
+    if (!movPorData[dStr]) movPorData[dStr] = { aportes: 0, saques: 0 }
+    if (m.tipo === 'DEPOSITO') movPorData[dStr].aportes += m.valorUSD
+    if (m.tipo === 'SAQUE') movPorData[dStr].saques += m.valorUSD
+  }
+
   // Dados para gráfico de evolução de capital
   // O primeiro ponto mostra o capital INICIAL (dia anterior ao primeiro pregão),
-  // os demais mostram o capitalFinal de cada dia fechado.
-  const evolucaoCapital: { data: Date; capital: number; resultado: number; rentabilidade: number; totalTrades: number; taxaAcerto: number }[] = []
+  // os demais mostram a Banca Global (Corretora + Reserva) de cada dia fechado.
+  const evolucaoCapital: { data: Date; capital: number; resultado: number; rentabilidade: number; totalTrades: number; taxaAcerto: number; aportes?: number; saques?: number }[] = []
   if (dias.length > 0) {
     const dataAntes = new Date(dias[0].date)
     dataAntes.setUTCDate(dataAntes.getUTCDate() - 1)
-    evolucaoCapital.push({ data: dataAntes, capital: dias[0].capitalInicialReal, resultado: 0, rentabilidade: 0, totalTrades: 0, taxaAcerto: 0 })
+    
+    // Ponto zero usa a bancaGlobal ou faz fallback inteligente para inicio+reservaAtual
+    const capInit = dias[0].bancaGlobal && dias[0].bancaGlobal > 0 
+      ? dias[0].bancaGlobal - (dias[0].resultadoDia ?? 0)
+      : dias[0].capitalInicialReal + reservaAtualUSD
+
+    evolucaoCapital.push({ data: dataAntes, capital: capInit, resultado: 0, rentabilidade: 0, totalTrades: 0, taxaAcerto: 0 })
   }
   for (const d of dias) {
+    const dStr = d.date.toISOString().split('T')[0]
+    const mov = movPorData[dStr] || { aportes: 0, saques: 0 }
     evolucaoCapital.push({
       data: d.date,
-      capital: d.capitalFinal ?? 0,
+      capital: (d.bancaGlobal && d.bancaGlobal > 0) ? d.bancaGlobal : ((d.capitalFinal ?? 0) + reservaAtualUSD),
       resultado: d.resultadoDia ?? 0,
       rentabilidade: d.rentabilidade ?? 0,
       totalTrades: (d.win ?? 0) + (d.loss ?? 0),
       taxaAcerto: d.taxaAcerto ?? 0,
+      aportes: mov.aportes + (d.deposito || 0),
+      saques: mov.saques,
     })
   }
 

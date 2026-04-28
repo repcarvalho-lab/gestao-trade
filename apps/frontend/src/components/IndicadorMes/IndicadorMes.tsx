@@ -96,9 +96,12 @@ export default function IndicadorMes({ nivel, rentabilidade, capitalInicio, capi
         <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
           <p style={{ fontSize: '13px', fontWeight: 600, color: cfg.cor }}>{fmtPct(rentabilidade)}</p>
           {capitalInicio > 0 && (
-            <p style={{ fontSize: '12px', fontWeight: 700, color: cfg.cor }}>{fmt(capitalAtual - capitalInicio)}</p>
+            <div style={{ marginTop: 2, marginBottom: 2 }}>
+              <p style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1px' }}>Lucro do Mês</p>
+              <p style={{ fontSize: '14px', fontWeight: 800, color: cfg.cor, lineHeight: 1 }}>{fmt(capitalAtual - capitalInicio)}</p>
+            </div>
           )}
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{diasOperados}d operados</p>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 4 }}>{diasOperados}d operados</p>
         </div>
       </div>
     )

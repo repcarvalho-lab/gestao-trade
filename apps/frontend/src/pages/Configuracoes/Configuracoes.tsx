@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useConfigStore, type Configuration } from '../../store/configStore'
 import { useAnalyticsStore } from '../../store/analyticsStore'
+import { useCapitalStore } from '../../store/capitalStore'
 import api from '../../services/api'
 import { formatPct, formatUSD } from '../../lib/format'
 
@@ -838,6 +839,7 @@ function SaveButton({ onSave, saving, saved }: { onSave: () => void; saving: boo
 // ─── Página principal ─────────────────────────────────────────
 export default function Configuracoes() {
   const { config, fetchConfig, updateConfig } = useConfigStore()
+  const { fetchCapital } = useCapitalStore()
   const [activeTab, setActiveTab] = useState<TabKey>('estrategia')
   const [form, setForm] = useState<Partial<Configuration>>({})
   const [saving, setSaving] = useState(false)
@@ -862,6 +864,7 @@ export default function Configuracoes() {
     setSaving(true)
     try {
       await updateConfig(form)
+      await fetchCapital() // Atualiza os widgets e saldos globais atrelados ao câmbio na interface
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch { /* toast futuro */ }

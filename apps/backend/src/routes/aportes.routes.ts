@@ -6,9 +6,9 @@ import * as aportesController from '../controllers/aportes.controller'
 const router = Router()
 router.use(authenticate)
 
-router.get('/',       aportesController.listar)
-router.post('/',      aportesController.criar)
-router.patch('/:id',  aportesController.atualizar)
-router.delete('/:id', aportesController.deletar)
+router.get('/',       catchAsync(aportesController.listar))
+router.post('/',      catchAsync(aportesController.criar))
+router.patch('/:id',  catchAsync(aportesController.atualizar))
+router.delete('/:id', catchAsync(aportesController.deletar))
 
 export default router

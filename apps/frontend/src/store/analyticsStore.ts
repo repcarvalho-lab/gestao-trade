@@ -60,7 +60,7 @@ export interface MesProjecao {
   capitalFinal: number
 }
 
-export interface PlanejadoItem { id: string; mes: string; valor: number }
+export interface PlanejadoItem { id: string; mes: string; valor: number; dia: number }
 
 export interface ProjecaoData {
   capitalAtual: number

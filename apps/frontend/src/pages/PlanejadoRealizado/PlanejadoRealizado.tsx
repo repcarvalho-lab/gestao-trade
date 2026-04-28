@@ -9,7 +9,12 @@ import api from '../../services/api'
 interface MesReport {
   mes: string
   capitalInicial: number
+  bancaGlobalInicial: number
+  bancaGlobalFinal: number
   vlDepositadoSacado: number
+  aporteReal: number
+  saqueReal: number
+  pesoNet: number
   lucroTotal: number
   capitalFinal: number
   rentabTotal: number
@@ -17,7 +22,7 @@ interface MesReport {
 
 interface PlanejadoData {
   meses: MesReport[]
-  mesAtual: { mes: string; capitalInicial: number } | null
+  mesAtual: { mes: string; capitalInicial: number, bancaGlobalInicial: number, bancaGlobalFinal?: number, aporteReal: number, saqueReal: number, pesoNet: number } | null
   config: {
     retornoConservador: number
     retornoRealista: number
@@ -74,10 +79,10 @@ export default function PlanejadoRealizado() {
     const { meses, config, mesAtual } = data
     if (meses.length === 0 && !mesAtual) return []
 
-    // Determina o capital base: primeiro mês fechado ou mês atual
+    // Determina o capital base: primeiro mês fechado ou mês atual usando a Banca Global Inicial
     const primeiroCapital = meses.length > 0
-      ? meses[0].capitalInicial
-      : mesAtual!.capitalInicial
+      ? meses[0].bancaGlobalInicial
+      : mesAtual!.bancaGlobalInicial
 
     // Ponto de partida sintético: mês anterior ao primeiro dado, com o capitalInicial
     const mesRef = meses.length > 0 ? meses[0].mes : mesAtual!.mes
@@ -102,39 +107,46 @@ export default function PlanejadoRealizado() {
     let prevAgr  = primeiroCapital
 
     for (const m of meses) {
-      const net = m.vlDepositadoSacado
-      const cons = prevCons * (1 + config.retornoConservador) + net
-      const real = prevReal * (1 + config.retornoRealista)    + net
-      const agr  = prevAgr  * (1 + config.retornoAgressivo)   + net
+      const net = (m.aporteReal || 0) - (m.saqueReal || 0)
+      const pesoNet = m.pesoNet || 0
+      
+      const cons = prevCons * (1 + config.retornoConservador) + net + (pesoNet * config.retornoConservador)
+      const real = prevReal * (1 + config.retornoRealista)    + net + (pesoNet * config.retornoRealista)
+      const agr  = prevAgr  * (1 + config.retornoAgressivo)   + net + (pesoNet * config.retornoAgressivo)
+      
       prevCons = cons; prevReal = real; prevAgr = agr
       pontos.push({
         mes:         m.mes,
-        realizado:   m.capitalFinal,
+        realizado:   m.bancaGlobalFinal,
         conservador: Math.round(cons * 100) / 100,
         realista:    Math.round(real * 100) / 100,
         agressivo:   Math.round(agr  * 100) / 100,
         parcial:     false,
         net:         net,
-        aporte:      (m as any).aporteReal || 0,
-        saque:       (m as any).saqueReal || 0,
+        aporte:      m.aporteReal || 0,
+        saque:       m.saqueReal || 0,
       })
     }
 
-    // Ponto do mês corrente (capital inicial, caso não esteja já nos meses fechados)
+    // Ponto do mês corrente
     if (mesAtual) {
-      const cons = prevCons * (1 + config.retornoConservador)
-      const real = prevReal * (1 + config.retornoRealista)
-      const agr  = prevAgr  * (1 + config.retornoAgressivo)
+      const netAtual = (mesAtual.aporteReal || 0) - (mesAtual.saqueReal || 0)
+      const pesoNet = mesAtual.pesoNet || 0
+      
+      const cons = prevCons * (1 + config.retornoConservador) + netAtual + (pesoNet * config.retornoConservador)
+      const real = prevReal * (1 + config.retornoRealista) + netAtual + (pesoNet * config.retornoRealista)
+      const agr  = prevAgr  * (1 + config.retornoAgressivo) + netAtual + (pesoNet * config.retornoAgressivo)
+      
       pontos.push({
         mes:         mesAtual.mes,
-        realizado:   mesAtual.capitalInicial,
+        realizado:   mesAtual.bancaGlobalInicial + netAtual, /* Considera aportes pendentes na banca global do mês atual */
         conservador: Math.round(cons * 100) / 100,
         realista:    Math.round(real * 100) / 100,
         agressivo:   Math.round(agr  * 100) / 100,
         parcial:     true,
-        net:         ((mesAtual as any).aporteReal || 0) - ((mesAtual as any).saqueReal || 0),
-        aporte:      (mesAtual as any).aporteReal || 0,
-        saque:       (mesAtual as any).saqueReal || 0,
+        net:         netAtual,
+        aporte:      mesAtual.aporteReal || 0,
+        saque:       mesAtual.saqueReal || 0,
       })
     }
 
@@ -248,60 +260,73 @@ export default function PlanejadoRealizado() {
         </p>
       </div>
 
-      {/* Cards: real vs planejado no último mês */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.875rem' }}>
-
-        {/* Real */}
-        <div className="card" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-            Real — {parseMesLabel(ultimo.mes)}
-          </p>
-          <p style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+      {/* Cenário Atual (North Star) */}
+      <div className="card shadow-lg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', background: 'var(--bg-surface)' }}>
+        <div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Cenário Real Consolidado — {parseMesLabel(ultimo.mes)}</p>
+          <h2 style={{ margin: '0.2rem 0 0', fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.1 }}>
             {formatCurrency(ultimo.realizado)}
-          </p>
-          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            {chartData.length} {chartData.length === 1 ? 'mês' : 'meses'} de histórico
-          </p>
+          </h2>
         </div>
-
-        {/* Conservador */}
-        <div className="card" style={{ borderColor: 'rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.04)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-            <p style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <ShieldCheck size={12} /> Conservador ({(config.retornoConservador * 100).toFixed(0)}%/mês)
-            </p>
-            {deltaChip(ultimo.realizado, ultimo.conservador)}
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Histórico Analisado</p>
+          <div className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+            {chartData.length} {chartData.length === 1 ? 'mês' : 'meses'}
           </div>
-          <p style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent-blue)', margin: 0 }}>
-            {formatCurrency(ultimo.conservador)}
-          </p>
+        </div>
+      </div>
+
+      {/* Cenários Projetados (Cards com Watermark) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.875rem' }}>
+        
+        {/* Conservador */}
+        <div className="card" style={{ borderColor: 'rgba(59,130,246,0.2)', background: 'var(--bg-surface)', position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--accent-blue)', margin: 0, fontWeight: 600 }}>
+                Conservador <span style={{ opacity: 0.7, fontWeight: 500 }}>({(config.retornoConservador * 100).toFixed(0)}%/mês)</span>
+              </p>
+              {deltaChip(ultimo.realizado, ultimo.conservador)}
+            </div>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-blue)', margin: 0, lineHeight: 1 }}>
+              {formatCurrency(ultimo.conservador)}
+            </p>
+          </div>
+          <ShieldCheck size={100} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-20px', color: 'var(--accent-blue)', opacity: 0.1, zIndex: 0 }} />
         </div>
 
         {/* Realista */}
-        <div className="card" style={{ borderColor: 'rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.04)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-            <p style={{ fontSize: '0.75rem', color: '#4ade80', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <TrendingUp size={12} /> Realista ({(config.retornoRealista * 100).toFixed(0)}%/mês)
+        <div className="card" style={{ borderColor: 'rgba(74,222,128,0.2)', background: 'var(--bg-surface)', position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <p style={{ fontSize: '0.8rem', color: '#4ade80', margin: 0, fontWeight: 600 }}>
+                Realista <span style={{ opacity: 0.7, fontWeight: 500 }}>({(config.retornoRealista * 100).toFixed(0)}%/mês)</span>
+              </p>
+              {deltaChip(ultimo.realizado, ultimo.realista)}
+            </div>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#4ade80', margin: 0, lineHeight: 1 }}>
+              {formatCurrency(ultimo.realista)}
             </p>
-            {deltaChip(ultimo.realizado, ultimo.realista)}
           </div>
-          <p style={{ fontSize: '1.4rem', fontWeight: 700, color: '#4ade80', margin: 0 }}>
-            {formatCurrency(ultimo.realista)}
-          </p>
+          <TrendingUp size={100} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-20px', color: '#4ade80', opacity: 0.1, zIndex: 0 }} />
         </div>
 
         {/* Agressivo */}
-        <div className="card" style={{ borderColor: 'rgba(139,92,246,0.3)', background: 'rgba(139,92,246,0.04)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-            <p style={{ fontSize: '0.75rem', color: '#8b5cf6', margin: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Zap size={12} /> Agressivo ({(config.retornoAgressivo * 100).toFixed(0)}%/mês)
+        <div className="card" style={{ borderColor: 'rgba(139,92,246,0.2)', background: 'var(--bg-surface)', position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <p style={{ fontSize: '0.8rem', color: '#8b5cf6', margin: 0, fontWeight: 600 }}>
+                Agressivo <span style={{ opacity: 0.7, fontWeight: 500 }}>({(config.retornoAgressivo * 100).toFixed(0)}%/mês)</span>
+              </p>
+              {deltaChip(ultimo.realizado, ultimo.agressivo)}
+            </div>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#8b5cf6', margin: 0, lineHeight: 1 }}>
+              {formatCurrency(ultimo.agressivo)}
             </p>
-            {deltaChip(ultimo.realizado, ultimo.agressivo)}
           </div>
-          <p style={{ fontSize: '1.4rem', fontWeight: 700, color: '#8b5cf6', margin: 0 }}>
-            {formatCurrency(ultimo.agressivo)}
-          </p>
+          <Zap size={100} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-20px', color: '#8b5cf6', opacity: 0.1, zIndex: 0 }} />
         </div>
+
       </div>
 
       {/* Gráfico */}

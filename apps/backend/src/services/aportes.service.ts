@@ -8,7 +8,7 @@ export async function listarAportes(userId: string) {
   })
 }
 
-export async function criarAporte(userId: string, mes: string, valor: number) {
+export async function criarAporte(userId: string, mes: string, valor: number, dia: number = 1) {
   // Verifica duplicata
   const existe = await prisma.aportePlanejado.findUnique({
     where: { userId_mes: { userId, mes } },
@@ -16,17 +16,20 @@ export async function criarAporte(userId: string, mes: string, valor: number) {
   if (existe) throw new AppError(`Já existe um aporte planejado para ${mes}.`, 409)
 
   return prisma.aportePlanejado.create({
-    data: { userId, mes, valor },
+    data: { userId, mes, valor, dia },
   })
 }
 
-export async function atualizarAporte(id: string, userId: string, valor: number) {
+export async function atualizarAporte(id: string, userId: string, valor?: number, dia?: number) {
   const aporte = await prisma.aportePlanejado.findFirst({ where: { id, userId } })
   if (!aporte) throw new AppError('Aporte não encontrado.', 404)
 
   return prisma.aportePlanejado.update({
     where: { id },
-    data: { valor },
+    data: { 
+      ...(valor !== undefined && { valor }),
+      ...(dia !== undefined && { dia })
+    },
   })
 }
 

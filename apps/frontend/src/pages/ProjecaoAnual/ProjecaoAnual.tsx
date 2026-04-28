@@ -41,11 +41,13 @@ export default function ProjecaoAnual() {
   type EditTipo = 'aporte' | 'saque'
   const [editando, setEditando] = useState<{ mes: string; tipo: EditTipo } | null>(null)
   const [editandoValor, setEditandoValor] = useState('')
+  const [editandoDia, setEditandoDia] = useState('1')
   const [salvandoEdit, setSalvandoEdit] = useState(false)
 
-  const salvarPlanejado = async (mes: string, tipo: EditTipo, valor: string) => {
+  const salvarPlanejado = async (mes: string, tipo: EditTipo, valor: string, diaStr: string) => {
     const endpoint = tipo === 'aporte' ? '/aportes' : '/saques'
     const val = parseFloat(valor)
+    const dia = parseInt(diaStr, 10) || 1
     const lista = tipo === 'aporte'
       ? projecaoData?.aportesPlanejados
       : projecaoData?.saquesPlanejados
@@ -57,9 +59,9 @@ export default function ProjecaoAnual() {
         // Zerar = remover o registro se existir
         if (existente) await api.delete(`${endpoint}/${existente.id}`)
       } else if (existente) {
-        await api.patch(`${endpoint}/${existente.id}`, { valor: val })
+        await api.patch(`${endpoint}/${existente.id}`, { valor: val, dia })
       } else {
-        await api.post(endpoint, { mes, valor: val })
+        await api.post(endpoint, { mes, valor: val, dia })
       }
       setEditando(null)
       fetchProjecao()
@@ -75,10 +77,17 @@ export default function ProjecaoAnual() {
     const { conservador, realista, agressivo } = projecaoData.projecao
     if (!conservador?.length) return []
     const fonteViavel = { conservador, realista, agressivo }[cenarioSaque]
+    
+    // Mapear dias para o tooltip e tabela
+    const diasAporte = Object.fromEntries((projecaoData.aportesPlanejados || []).map(a => [a.mes, a.dia]))
+    const diasSaque = Object.fromEntries((projecaoData.saquesPlanejados || []).map(a => [a.mes, a.dia]))
+
     return conservador.map((cons, i) => ({
       mesAno: cons.mes,
       aporte: cons.aporte,
+      aporteDia: diasAporte[cons.mes] || 1,
       saquePlanejado: cons.saquePlanejado,
+      saqueDia: diasSaque[cons.mes] || 1,
       saqueViavel: fonteViavel[i]?.saqueViavel ?? 0,
       capital_CONS: cons.capitalFinal,
       capital_REAL: realista[i]?.capitalFinal ?? 0,
@@ -118,7 +127,7 @@ export default function ProjecaoAnual() {
     )
   }
 
-  const { capitalAtual } = projecaoData
+  
   const ultimoMes = dadosFiltrados[dadosFiltrados.length - 1] ?? chartData[chartData.length - 1]
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -154,7 +163,7 @@ export default function ProjecaoAnual() {
           <div className="flex justify-between items-center">
             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-              <span style={{ color: 'var(--text-muted)' }}>Aporte Planejado:</span>
+              <span style={{ color: 'var(--text-muted)' }}>Aporte (Dia {data.aporteDia}):</span>
             </span>
             <span style={{ color: data.aporte > 0 ? '#4ade80' : 'var(--text-muted)', fontWeight: data.aporte > 0 ? 600 : 400 }}>
               {data.aporte > 0 ? `+${formatCurrency(data.aporte)}` : '—'}
@@ -163,7 +172,7 @@ export default function ProjecaoAnual() {
           <div className="flex justify-between items-center">
             <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
-              <span style={{ color: 'var(--text-muted)' }}>Saque Planejado:</span>
+              <span style={{ color: 'var(--text-muted)' }}>Saque Planejado (Dia {data.saqueDia}):</span>
             </span>
             <span style={{ color: data.saquePlanejado > 0 ? '#fb923c' : 'var(--text-muted)', fontWeight: data.saquePlanejado > 0 ? 600 : 400 }}>
               {data.saquePlanejado > 0 ? `-${formatCurrency(data.saquePlanejado)}` : '—'}
@@ -207,41 +216,47 @@ export default function ProjecaoAnual() {
       )}
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card relative overflow-hidden">
-          <p className="text-[var(--text-secondary)] text-sm mb-1">Capital Inicial do Mês</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)]">{formatCurrency(capitalAtual)}</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        {/* Conservador */}
+        <div className="card" style={{ borderColor: 'rgba(59,130,246,0.2)', background: 'var(--bg-surface)', position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--accent-blue)', margin: '0 0 0.5rem', fontWeight: 600 }}>
+              Conservador ({formatMesAnoExtenso(ultimoMes.mesAno)})
+            </p>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-blue)', margin: 0, lineHeight: 1 }}>
+              {formatCurrency(ultimoMes.capital_CONS)}
+            </p>
+          </div>
+          <ShieldCheck size={100} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-20px', color: 'var(--accent-blue)', opacity: 0.1, zIndex: 0 }} />
         </div>
 
-        <div className="card card-hover border-[var(--accent-blue)]/50 bg-[var(--accent-blue)]/5 relative overflow-hidden group">
-          <div className="absolute right-[-10px] bottom-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
-            <ShieldCheck size={80} />
+        {/* Realista */}
+        <div className="card" style={{ borderColor: 'rgba(74,222,128,0.2)', background: 'var(--bg-surface)', position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <p style={{ fontSize: '0.85rem', color: '#4ade80', margin: '0 0 0.5rem', fontWeight: 600 }}>
+              Realista ({formatMesAnoExtenso(ultimoMes.mesAno)})
+            </p>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#4ade80', margin: 0, lineHeight: 1 }}>
+              {formatCurrency(ultimoMes.capital_REAL)}
+            </p>
           </div>
-          <p className="text-sm mb-1 text-[var(--accent-blue)]">
-            Conservador ({formatMesAnoExtenso(ultimoMes.mesAno)})
-          </p>
-          <p className="text-2xl font-bold text-[var(--accent-blue)]">{formatCurrency(ultimoMes.capital_CONS)}</p>
+          <TrendingUp size={100} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-20px', color: '#4ade80', opacity: 0.1, zIndex: 0 }} />
         </div>
 
-        <div className="card card-hover border-[var(--accent-win)]/50 bg-[var(--accent-win)]/5 relative overflow-hidden group">
-          <div className="absolute right-[-10px] bottom-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
-            <TrendingUp size={80} />
+        {/* Agressivo */}
+        <div className="card" style={{ borderColor: 'rgba(139,92,246,0.2)', background: 'var(--bg-surface)', position: 'relative', overflow: 'hidden', padding: '1.25rem' }}>
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <p style={{ fontSize: '0.85rem', color: '#8b5cf6', margin: '0 0 0.5rem', fontWeight: 600 }}>
+              Agressivo ({formatMesAnoExtenso(ultimoMes.mesAno)})
+            </p>
+            <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#8b5cf6', margin: 0, lineHeight: 1 }}>
+              {formatCurrency(ultimoMes.capital_AGR)}
+            </p>
           </div>
-          <p className="text-sm mb-1 text-[var(--accent-win)]">
-            Realista ({formatMesAnoExtenso(ultimoMes.mesAno)})
-          </p>
-          <p className="text-2xl font-bold text-[var(--accent-win)]">{formatCurrency(ultimoMes.capital_REAL)}</p>
+          <Zap size={100} strokeWidth={1.5} style={{ position: 'absolute', right: '-15px', bottom: '-20px', color: '#8b5cf6', opacity: 0.1, zIndex: 0 }} />
         </div>
 
-        <div className="card card-hover border-[#8b5cf6]/50 bg-[#8b5cf6]/5 relative overflow-hidden group">
-          <div className="absolute right-[-10px] bottom-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
-            <Zap size={80} />
-          </div>
-          <p className="text-sm mb-1 text-[#8b5cf6]">
-            Agressivo ({formatMesAnoExtenso(ultimoMes.mesAno)})
-          </p>
-          <p className="text-2xl font-bold text-[#8b5cf6]">{formatCurrency(ultimoMes.capital_AGR)}</p>
-        </div>
       </div>
 
       {/* Resumo de movimentações do período filtrado */}
@@ -433,17 +448,29 @@ export default function ProjecaoAnual() {
                       {editando?.mes === row.mesAno && editando.tipo === 'aporte' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, display: 'inline-block' }} />
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Dia:</span>
+                          <input
+                            type="number" min="1" max="31"
+                            value={editandoDia}
+                            onChange={e => setEditandoDia(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') salvarPlanejado(row.mesAno, 'aporte', editandoValor, editandoDia)
+                              if (e.key === 'Escape') setEditando(null)
+                            }}
+                            style={{ width: 45, fontSize: '11px', padding: '2px 4px', borderRadius: 4, border: '1px solid var(--accent-blue)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                          />
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>US$:</span>
                           <input
                             type="number" step="0.01" min="0" autoFocus
                             value={editandoValor}
                             onChange={e => setEditandoValor(e.target.value)}
                             onKeyDown={e => {
-                              if (e.key === 'Enter') salvarPlanejado(row.mesAno, 'aporte', editandoValor)
+                              if (e.key === 'Enter') salvarPlanejado(row.mesAno, 'aporte', editandoValor, editandoDia)
                               if (e.key === 'Escape') setEditando(null)
                             }}
-                            style={{ width: 90, fontSize: '11px', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--accent-blue)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                            style={{ width: 80, fontSize: '11px', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--accent-blue)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
                           />
-                          <button onClick={() => salvarPlanejado(row.mesAno, 'aporte', editandoValor)} disabled={salvandoEdit}
+                          <button onClick={() => salvarPlanejado(row.mesAno, 'aporte', editandoValor, editandoDia)} disabled={salvandoEdit}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4ade80', padding: 0 }}>
                             {salvandoEdit ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={11} />}
                           </button>
@@ -452,9 +479,9 @@ export default function ProjecaoAnual() {
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                           className="group" role="button"
-                          onClick={() => { setEditando({ mes: row.mesAno, tipo: 'aporte' }); setEditandoValor(row.aporte > 0 ? String(row.aporte) : '') }}>
+                          onClick={() => { setEditando({ mes: row.mesAno, tipo: 'aporte' }); setEditandoValor(row.aporte > 0 ? String(row.aporte) : ''); setEditandoDia(String(row.aporteDia)) }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, display: 'inline-block' }} />
-                          <span style={{ color: 'var(--text-muted)' }}>Aporte Planejado:</span>
+                          <span style={{ color: 'var(--text-muted)' }}>Aporte (Dia {row.aporteDia}):</span>
                           <span style={{ color: row.aporte > 0 ? '#4ade80' : 'var(--text-muted)', fontWeight: row.aporte > 0 ? 600 : 400 }}>
                             {row.aporte > 0 ? `+${formatCurrency(row.aporte)}` : '—'}
                           </span>
@@ -466,17 +493,29 @@ export default function ProjecaoAnual() {
                       {editando?.mes === row.mesAno && editando.tipo === 'saque' ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f97316', flexShrink: 0, display: 'inline-block' }} />
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Dia:</span>
+                          <input
+                            type="number" min="1" max="31"
+                            value={editandoDia}
+                            onChange={e => setEditandoDia(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') salvarPlanejado(row.mesAno, 'saque', editandoValor, editandoDia)
+                              if (e.key === 'Escape') setEditando(null)
+                            }}
+                            style={{ width: 45, fontSize: '11px', padding: '2px 4px', borderRadius: 4, border: '1px solid #f97316', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                          />
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>US$:</span>
                           <input
                             type="number" step="0.01" min="0" autoFocus
                             value={editandoValor}
                             onChange={e => setEditandoValor(e.target.value)}
                             onKeyDown={e => {
-                              if (e.key === 'Enter') salvarPlanejado(row.mesAno, 'saque', editandoValor)
+                              if (e.key === 'Enter') salvarPlanejado(row.mesAno, 'saque', editandoValor, editandoDia)
                               if (e.key === 'Escape') setEditando(null)
                             }}
-                            style={{ width: 90, fontSize: '11px', padding: '2px 6px', borderRadius: 4, border: '1px solid #f97316', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                            style={{ width: 80, fontSize: '11px', padding: '2px 6px', borderRadius: 4, border: '1px solid #f97316', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
                           />
-                          <button onClick={() => salvarPlanejado(row.mesAno, 'saque', editandoValor)} disabled={salvandoEdit}
+                          <button onClick={() => salvarPlanejado(row.mesAno, 'saque', editandoValor, editandoDia)} disabled={salvandoEdit}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fb923c', padding: 0 }}>
                             {salvandoEdit ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={11} />}
                           </button>
@@ -485,9 +524,9 @@ export default function ProjecaoAnual() {
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                           role="button"
-                          onClick={() => { setEditando({ mes: row.mesAno, tipo: 'saque' }); setEditandoValor(row.saquePlanejado > 0 ? String(row.saquePlanejado) : '') }}>
+                          onClick={() => { setEditando({ mes: row.mesAno, tipo: 'saque' }); setEditandoValor(row.saquePlanejado > 0 ? String(row.saquePlanejado) : ''); setEditandoDia(String(row.saqueDia)) }}>
                           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f97316', flexShrink: 0, display: 'inline-block' }} />
-                          <span style={{ color: 'var(--text-muted)' }}>Saque Planejado:</span>
+                          <span style={{ color: 'var(--text-muted)' }}>Saque (Dia {row.saqueDia}):</span>
                           <span style={{ color: row.saquePlanejado > 0 ? '#fb923c' : 'var(--text-muted)', fontWeight: row.saquePlanejado > 0 ? 600 : 400 }}>
                             {row.saquePlanejado > 0 ? `-${formatCurrency(row.saquePlanejado)}` : '—'}
                           </span>

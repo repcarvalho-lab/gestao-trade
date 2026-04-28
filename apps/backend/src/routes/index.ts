@@ -11,6 +11,7 @@ import aportesRoutes from './aportes.routes'
 import saquesRoutes from './saques.routes'
 import erroDiaRoutes from './erroDia.routes'
 import relatoriosRoutes from './relatorios.routes'
+import capitalRoutes from './capital.routes'
 
 export const router = Router()
 
@@ -27,4 +28,5 @@ router.use('/aportes', aportesRoutes)
 router.use('/saques', saquesRoutes)
 router.use('/erros-dia', erroDiaRoutes)
 router.use('/relatorios', relatoriosRoutes)
+router.use('/capital', capitalRoutes)
 router.use('/', analyticsRoutes)

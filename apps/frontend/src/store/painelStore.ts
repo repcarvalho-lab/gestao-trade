@@ -51,6 +51,9 @@ export interface TradingDay {
   valorENTR?: number
   valorMG1?: number
   valorMG2?: number
+  bancaGlobalUSD?: number
+  saldoReservaBRL?: number
+  capitalCorretoraUSD?: number
 }
 
 interface PainelState {
@@ -76,6 +79,7 @@ interface PainelState {
   excluirTrade: (tradeId: string) => Promise<void>
   fecharDia: (emocional: string, seguiuSetup: boolean, errosDia?: string[]) => Promise<void>
   excluirDia: () => Promise<void>
+  transferirCapital: (de: 'CORRETORA' | 'RESERVA', para: 'CORRETORA' | 'RESERVA', valorUSD: number, cambio: number, data: string, observacao?: string) => Promise<void>
 }
 
 export const usePainelStore = create<PainelState>((set, get) => ({
@@ -145,5 +149,10 @@ export const usePainelStore = create<PainelState>((set, get) => ({
     if (!dia) return
     await api.delete(`/trading-days/${dia.id}`)
     set({ diaAberto: null })
+  },
+
+  transferirCapital: async (de, para, valorUSD, cambio, data, observacao) => {
+    await api.post('/movimentos/transfer', { de, para, valorUSD, cambio, data, observacao })
+    await get().fetchDiaAberto()
   },
 }))
