@@ -8,10 +8,10 @@ import { authenticate } from '../middleware/auth'
 const router = Router()
 
 router.use(authenticate)
-router.get('/dashboard', dashboardController.getDashboard)
-router.get('/relatorios/semanal', relatoriosController.getSemanal)
-router.get('/relatorios/mensal', relatoriosController.getMensal)
-router.get('/projecao', projecaoController.getProjecao)
+router.get('/dashboard', catchAsync(dashboardController.getDashboard))
+router.get('/relatorios/semanal', catchAsync(relatoriosController.getSemanal))
+router.get('/relatorios/mensal', catchAsync(relatoriosController.getMensal))
+router.get('/projecao', catchAsync(projecaoController.getProjecao))
 router.get('/planejado-realizado', catchAsync(dashboardController.getPlanejadoRealizado))
 
 export default router
