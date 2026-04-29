@@ -211,6 +211,7 @@ export default function ProjecaoAnual() {
           rentabilidade={dashboardData.desempenhoMesAtual.rentabilidade}
           capitalInicio={dashboardData.desempenhoMesAtual.capitalInicio}
           capitalAtual={dashboardData.desempenhoMesAtual.capitalAtual}
+          lucroMes={dashboardData.desempenhoMesAtual.lucroMes}
           diasOperados={dashboardData.desempenhoMesAtual.diasOperados}
         />
       )}

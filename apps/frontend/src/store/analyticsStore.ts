@@ -28,6 +28,7 @@ export interface DashboardData {
     rentabilidade: number
     capitalInicio: number
     capitalAtual: number
+    lucroMes: number
     diasOperados: number
     diasPositivos: number
     maiorSequenciaPositiva: number

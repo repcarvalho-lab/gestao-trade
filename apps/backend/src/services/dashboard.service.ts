@@ -71,6 +71,7 @@ export async function getDashboard(userId: string) {
     rentabilidade: number
     capitalInicio: number
     capitalAtual: number
+    lucroMes: number
     diasOperados: number
     diasPositivos: number
     maiorSequenciaPositiva: number
@@ -83,6 +84,7 @@ export async function getDashboard(userId: string) {
       rentabilidade: 0,
       capitalInicio: 0,
       capitalAtual: 0,
+      lucroMes: 0,
       diasOperados: 0,
       diasPositivos: 0,
       maiorSequenciaPositiva: 0,
@@ -155,6 +157,7 @@ export async function getDashboard(userId: string) {
       rentabilidade,
       capitalInicio: capitalInicioGlobal,
       capitalAtual: capitalFimAtual,
+      lucroMes,
       diasOperados: diasMesAtual.length,
       diasPositivos: diasPositivosMes,
       maiorSequenciaPositiva: maiorSeqPos,

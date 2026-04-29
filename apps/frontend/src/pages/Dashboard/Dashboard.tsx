@@ -205,6 +205,7 @@ export default function Dashboard() {
             rentabilidade={desempenhoMesAtual.rentabilidade}
             capitalInicio={desempenhoMesAtual.capitalInicio}
             capitalAtual={desempenhoMesAtual.capitalAtual}
+            lucroMes={desempenhoMesAtual.lucroMes}
             diasOperados={desempenhoMesAtual.diasOperados}
             compact
           />

@@ -7,6 +7,7 @@ interface Props {
   rentabilidade: number
   capitalInicio: number
   capitalAtual: number
+  lucroMes: number
   diasOperados: number
   compact?: boolean // versão menor para o Dashboard
 }
@@ -67,7 +68,7 @@ const fmt = (v: number) =>
 const fmtPct = (v: number) =>
   `${v >= 0 ? '+' : ''}${(v * 100).toFixed(2)}%`
 
-export default function IndicadorMes({ nivel, rentabilidade, capitalInicio, capitalAtual, diasOperados, compact = false }: Props) {
+export default function IndicadorMes({ nivel, rentabilidade, capitalInicio, capitalAtual, lucroMes, diasOperados, compact = false }: Props) {
   const cfg = CONFIG[nivel]
   const { Icon } = cfg
 
@@ -98,7 +99,7 @@ export default function IndicadorMes({ nivel, rentabilidade, capitalInicio, capi
           {capitalInicio > 0 && (
             <div style={{ marginTop: 2, marginBottom: 2 }}>
               <p style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1px' }}>Lucro do Mês</p>
-              <p style={{ fontSize: '14px', fontWeight: 800, color: cfg.cor, lineHeight: 1 }}>{fmt(capitalAtual - capitalInicio)}</p>
+              <p style={{ fontSize: '14px', fontWeight: 800, color: cfg.cor, lineHeight: 1 }}>{fmt(lucroMes)}</p>
             </div>
           )}
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: 4 }}>{diasOperados}d operados</p>
@@ -151,7 +152,7 @@ export default function IndicadorMes({ nivel, rentabilidade, capitalInicio, capi
           </div>
           <div>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Lucro do mês</p>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: cfg.cor }}>{fmt(capitalAtual - capitalInicio)}</p>
+            <p style={{ fontSize: '14px', fontWeight: 600, color: cfg.cor }}>{fmt(lucroMes)}</p>
           </div>
         </div>
       )}
