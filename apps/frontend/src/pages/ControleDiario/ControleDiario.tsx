@@ -233,7 +233,7 @@ function DetalheModal({ diaId, onClose, onUpdate }: {
             {/* KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem', marginBottom: '1.25rem' }}>
               {[
-                { label: 'Banca Global', value: formatUSD(dia.bancaGlobal ?? dia.capitalInicialReal), color: 'var(--text-primary)' },
+                { label: 'Banca Global', value: formatUSD(dia.bancaGlobal || dia.capitalInicialReal), color: 'var(--text-primary)' },
                 { label: 'Cap. Corretora', value: formatUSD(dia.capitalInicialReal), color: 'var(--text-primary)' },
                 { label: 'Resultado', value: (isPos ? '+' : '') + formatUSD(resultado), color: isPos ? 'var(--accent-win)' : 'var(--accent-loss)' },
                 { label: 'Rentab. Global', value: formatPct(dia.rentabilidade), color: isPos ? 'var(--accent-win)' : 'var(--accent-loss)' },
@@ -569,7 +569,7 @@ export default function ControleDiario() {
                         {!d.isClosed && <span className="badge badge-warn" style={{ fontSize: '0.6rem' }}>Aberto</span>}
                       </div>
                     </td>
-                    <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatUSD(d.bancaGlobal ?? d.capitalInicialReal)}</td>
+                    <td style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatUSD(d.bancaGlobal || d.capitalInicialReal)}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatUSD(d.capitalInicialReal)}</td>
                     <td className={valueClass(res)} style={{ fontWeight: 700 }}>
                       {d.resultadoDia != null ? (isPos ? '+' : '') + formatUSD(d.resultadoDia) : '—'}
