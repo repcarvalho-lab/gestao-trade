@@ -68,7 +68,7 @@ async function syncTradingDayDeposito(userId: string, data: Date) {
   const capitalInicialReal = tradingDay.capitalInicial + net
   const bancaGlobal = capitalInicialReal + reservaOuroUSD
 
-  const calc = recalcularDia({ ...tradingDay, capitalInicialReal, deposito: net }, tradingDay.trades, config)
+  const calc = recalcularDia({ ...tradingDay, capitalInicialReal, deposito: net }, tradingDay.trades, config, bancaGlobal)
 
   // Para dias fechados, mantém META_NAO_ATINGIDA se o status recalculado for ATENCAO/OPERANDO
   const statusFinal = (

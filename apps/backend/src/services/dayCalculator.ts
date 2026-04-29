@@ -116,8 +116,8 @@ export function recalcularDia(
 
   const resultadoDia = tradesFinalizados.reduce((acc, t) => acc + (t.resultado ?? 0), 0)
   const rentabilidade =
-    tradingDay.capitalInicialReal > 0
-      ? resultadoDia / tradingDay.capitalInicialReal
+    baseCapital > 0
+      ? resultadoDia / baseCapital
       : 0
 
   const win = tradesFinalizados.filter((t) => t.status === 'WIN').length

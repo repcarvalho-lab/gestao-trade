@@ -26,7 +26,7 @@ export async function criarTrade(input: CriarTradeInput) {
 
   // Verifica se stop foi atingido (apenas visual, não bloqueia mais operações a pedido do usuário)
   const tradesExistentes = await prisma.trade.findMany({ where: { tradingDayId } })
-  const calc = recalcularDia(dia, tradesExistentes, config)
+  const calc = recalcularDia(dia, tradesExistentes, config, dia.bancaGlobal || dia.capitalInicialReal)
 
   // Verifica ciclos disponíveis
   const ciclosAbertos = await prisma.ciclo.findMany({
@@ -158,7 +158,7 @@ export async function marcarResultado(
     const todosOsTrades = await prisma.trade.findMany({
       where: { tradingDayId: trade.tradingDayId },
     })
-    const calc = recalcularDia(dia, todosOsTrades, config)
+    const calc = recalcularDia(dia, todosOsTrades, config, dia.bancaGlobal || dia.capitalInicialReal)
     await prisma.tradingDay.update({
       where: { id: trade.tradingDayId },
       data: {
@@ -238,7 +238,7 @@ export async function editarTrade(
   const dia = await prisma.tradingDay.findUnique({ where: { id: trade.tradingDayId } })
   if (dia) {
     const todos = await prisma.trade.findMany({ where: { tradingDayId: trade.tradingDayId } })
-    const calc = recalcularDia(dia, todos, config)
+    const calc = recalcularDia(dia, todos, config, dia.bancaGlobal || dia.capitalInicialReal)
     await prisma.tradingDay.update({
       where: { id: trade.tradingDayId },
       data: {
@@ -323,7 +323,7 @@ export async function excluirTrade(tradeId: string, userId: string) {
     const todosOsTradesDia = await prisma.trade.findMany({
       where: { tradingDayId: trade.tradingDayId }
     })
-    const calc = recalcularDia(dia, todosOsTradesDia, config)
+    const calc = recalcularDia(dia, todosOsTradesDia, config, dia.bancaGlobal || dia.capitalInicialReal)
     console.log(`[TradeService] Recalculando dia. Novo status: ${calc.status}, Trades: ${calc.numeroTrades}`)
     await prisma.tradingDay.update({
       where: { id: trade.tradingDayId },
