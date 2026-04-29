@@ -43,15 +43,18 @@ export async function getDashboard(userId: string) {
   }
 
   const capitalInicialHistorico = dias[0]?.capitalInicial ?? 0
-  const crescimentoPct = capitalInicialHistorico > 0 ? lucroTotal / capitalInicialHistorico : 0
+  
+  const movimentos = await prisma.depositoSaque.findMany({ where: { userId } })
+  const totalAportes = movimentos.filter(m => m.tipo === 'DEPOSITO').reduce((s, m) => s + m.valorUSD, 0)
+  const totalSaques  = movimentos.filter(m => m.tipo === 'SAQUE').reduce((s, m) => s + m.valorUSD, 0)
+
+  const capitalInvestidoTotal = capitalInicialHistorico + totalAportes - totalSaques
+  const crescimentoPct = capitalInvestidoTotal > 0 ? lucroTotal / capitalInvestidoTotal : 0
+  
   const mediaLucroDia = diaTotais > 0 ? lucroTotal / diaTotais : 0
   const mediaRentabilidade = diaTotais > 0
     ? dias.reduce((acc, d) => acc + (d.rentabilidade ?? 0), 0) / diaTotais
     : 0
-
-  const movimentos = await prisma.depositoSaque.findMany({ where: { userId } })
-  const totalAportes = movimentos.filter(m => m.tipo === 'DEPOSITO').reduce((s, m) => s + m.valorUSD, 0)
-  const totalSaques  = movimentos.filter(m => m.tipo === 'SAQUE').reduce((s, m) => s + m.valorUSD, 0)
 
   const config = await prisma.configuration.findUnique({ where: { userId } })
 
