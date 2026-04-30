@@ -244,7 +244,7 @@ export async function getDashboard(userId: string) {
       rentabilidade: d.rentabilidade ?? 0,
       totalTrades: (d.win ?? 0) + (d.loss ?? 0),
       taxaAcerto: d.taxaAcerto ?? 0,
-      aportes: mov.aportes + (d.deposito || 0),
+      aportes: mov.aportes,
       saques: mov.saques,
     })
   }
