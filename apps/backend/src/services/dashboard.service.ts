@@ -42,6 +42,20 @@ export async function getDashboard(userId: string) {
     }
   }
 
+  let sequenciaAtualGlobal = 0
+  if (dias.length > 0) {
+    const ultimoResultado = dias[dias.length - 1].resultadoDia ?? 0
+    if (ultimoResultado !== 0) {
+      const isPositivo = ultimoResultado > 0
+      for (let i = dias.length - 1; i >= 0; i--) {
+        const res = dias[i].resultadoDia ?? 0
+        if (isPositivo && res > 0) sequenciaAtualGlobal++
+        else if (!isPositivo && res < 0) sequenciaAtualGlobal--
+        else break
+      }
+    }
+  }
+
   const capitalInicialHistorico = dias[0]?.capitalInicial ?? 0
   
   const movimentos = await prisma.depositoSaque.findMany({ where: { userId } })
@@ -180,27 +194,52 @@ export async function getDashboard(userId: string) {
     if (m.tipo === 'SAQUE') movPorData[dStr].saques += m.valorUSD
   }
 
+  // Pre-calcular a reserva histórica para cada dia
+  const movsReserva = movimentos.filter(m => m.conta === 'RESERVA');
+  const cambioConsiderado = config?.cambioCompra || 5.0;
+
+  const getReservaNoDia = (date: Date) => {
+    const dayEnd = new Date(date);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+    const movsAteFimDia = movsReserva.filter(m => m.data <= dayEnd);
+    const saldoBRL = movsAteFimDia.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0);
+    return saldoBRL / cambioConsiderado;
+  };
+
   // Dados para gráfico de evolução de capital
   // O primeiro ponto mostra o capital INICIAL (dia anterior ao primeiro pregão),
-  // os demais mostram a Banca Global (Corretora + Reserva) de cada dia fechado.
+  // os demais mostram a Banca Global (Corretora + Reserva Histórica) de cada dia fechado.
   const evolucaoCapital: { data: Date; capital: number; resultado: number; rentabilidade: number; totalTrades: number; taxaAcerto: number; aportes?: number; saques?: number }[] = []
   if (dias.length > 0) {
     const dataAntes = new Date(dias[0].date)
     dataAntes.setUTCDate(dataAntes.getUTCDate() - 1)
     
-    // Ponto zero usa a bancaGlobal ou faz fallback inteligente para inicio+reservaAtual
-    const capInit = dias[0].bancaGlobal && dias[0].bancaGlobal > 0 
-      ? dias[0].bancaGlobal - (dias[0].resultadoDia ?? 0)
-      : dias[0].capitalInicialReal + reservaAtualUSD
+    // Ponto zero: usa capital inicial da corretora + reserva histórica no dia anterior
+    const reservaAntes = getReservaNoDia(dataAntes)
+    const capInit = dias[0].capitalInicialReal + reservaAntes
 
     evolucaoCapital.push({ data: dataAntes, capital: capInit, resultado: 0, rentabilidade: 0, totalTrades: 0, taxaAcerto: 0 })
   }
   for (const d of dias) {
     const dStr = d.date.toISOString().split('T')[0]
     const mov = movPorData[dStr] || { aportes: 0, saques: 0 }
+    
+    // Calcular a banca global real daquele dia exato
+    const reservaNoDia = getReservaNoDia(d.date)
+    
+    // Prioriza o bancaGlobal salvo no banco SE ele já engloba a reserva (foi salvo corretamente na nova versão)
+    // Para saber se ele engloba, verificamos se ele é significativamente maior que o capitalFinal
+    // Mas a forma mais segura de ter um gráfico 100% consistente é sempre somar o capitalFinal com a reservaHistórica.
+    // Se o usuário atualizou o banco ou tem dias antigos sem bancaGlobal, a soma corrige o gap.
+    const capitalCorretora = d.capitalFinal ?? 0
+    let capitalDia = capitalCorretora + reservaNoDia
+    
+    // Opcional: Se o d.bancaGlobal for confiável (foi salvo recentemente), ele já é isso. 
+    // Usar o cálculo dinâmico previne o "degrau" quando a reserva do dia for diferente da reservaAtual.
+
     evolucaoCapital.push({
       data: d.date,
-      capital: (d.bancaGlobal && d.bancaGlobal > 0) ? d.bancaGlobal : ((d.capitalFinal ?? 0) + reservaAtualUSD),
+      capital: capitalDia,
       resultado: d.resultadoDia ?? 0,
       rentabilidade: d.rentabilidade ?? 0,
       totalTrades: (d.win ?? 0) + (d.loss ?? 0),
@@ -245,6 +284,7 @@ export async function getDashboard(userId: string) {
       pctDiasPositivos,
       maiorSequenciaPositiva,
       maiorSequenciaNegativa,
+      sequenciaAtualGlobal,
       crescimentoPct,
       mediaLucroDia,
       mediaRentabilidade,

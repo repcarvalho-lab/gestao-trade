@@ -64,6 +64,7 @@ export default function Dashboard() {
     pctDiasPositivos:      ind.pctDiasPositivos       ?? 0,
     maiorSequenciaPositiva: ind.maiorSequenciaPositiva ?? 0,
     maiorSequenciaNegativa: ind.maiorSequenciaNegativa ?? 0,
+    sequenciaAtualGlobal:   ind.sequenciaAtualGlobal   ?? 0,
     totalGanhos:           ind.totalGanhos            ?? 0,
     totalPerdas:           ind.totalPerdas            ?? 0,
     ultimoCapital:         ind.ultimoCapital          ?? 0,
@@ -345,6 +346,29 @@ export default function Dashboard() {
           </div>
           <p className="text-[11px] text-[var(--text-muted)] mt-1.5 font-medium">
             <span className="text-[var(--accent-win)] font-bold">{indicadores.diasPositivos} positivos</span> ({(indicadores.pctDiasPositivos * 100).toFixed(1)}%)
+          </p>
+        </div>
+
+        <div className="hidden md:block w-px h-16 bg-[var(--border)]"></div>
+
+        {/* Sequência Atual e Recorde */}
+        <div className="flex-1 flex flex-col min-w-[150px]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.10em] text-[var(--text-secondary)] mb-2 flex items-center gap-1">
+            <Activity size={12} className={indicadores.sequenciaAtualGlobal >= 0 ? 'text-[var(--accent-win)]' : 'text-[var(--accent-loss)]'} /> Sequência Atual
+          </p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <p className={`text-3xl font-bold ${indicadores.sequenciaAtualGlobal > 0 ? 'text-[var(--accent-win)]' : indicadores.sequenciaAtualGlobal < 0 ? 'text-[var(--accent-loss)]' : 'text-[var(--text-muted)]'}`}>
+              {Math.abs(indicadores.sequenciaAtualGlobal)}
+              <span className="text-xl ml-0.5">d</span>
+            </p>
+            {indicadores.sequenciaAtualGlobal !== 0 && (
+              <span className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                {indicadores.sequenciaAtualGlobal > 0 ? 'win' : 'loss'}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-[var(--text-muted)] mt-1.5 font-medium">
+            Recorde: <span className="text-[var(--accent-win)] font-bold">{indicadores.maiorSequenciaPositiva}W</span> / <span className="text-[var(--accent-loss)] font-bold">{indicadores.maiorSequenciaNegativa}L</span>
           </p>
         </div>
 
