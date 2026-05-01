@@ -924,7 +924,7 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
       const sep = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ','
       
       const parseCSVLine = (line: string, separator: string) => {
-        const result = []
+        const result: string[] = []
         let current = ''
         let inQuotes = false
         for (let i = 0; i < line.length; i++) {
