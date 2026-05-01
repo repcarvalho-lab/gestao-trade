@@ -197,12 +197,13 @@ export async function getDashboard(userId: string) {
   // Pre-calcular a reserva histórica para cada dia
   const movsReserva = movimentos.filter(m => m.conta === 'RESERVA');
   const cambioConsiderado = config?.cambioCompra || 5.0;
+  const baseReservaBRL = (config?.saldoInicialReserva ?? 0) * cambioConsiderado;
 
   const getReservaNoDia = (date: Date) => {
     const dayEnd = new Date(date);
     dayEnd.setUTCHours(23, 59, 59, 999);
     const movsAteFimDia = movsReserva.filter(m => m.data <= dayEnd);
-    const saldoBRL = movsAteFimDia.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0);
+    const saldoBRL = baseReservaBRL + movsAteFimDia.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0);
     return saldoBRL / cambioConsiderado;
   };
 
