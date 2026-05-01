@@ -154,11 +154,6 @@ function DetalheModal({ diaId, onClose, onUpdate }: {
   const tipoColor: Record<string, string> = { ENTR: '#3b82f6', MG1: '#f59e0b', MG2: '#f43f5e' }
 
   // Regras de negócio para os botões
-  const hoje = new Date()
-  const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
-  // diaStr extrai a data UTC do campo (que bate com o calendário armazenado no banco)
-  const diaStr = dia ? new Date(dia.date).toISOString().slice(0, 10) : ''
-  const podeReabrir = diaStr === hojeStr
   const podeExcluir = dia ? dia.trades.length === 0 : false
 
   return (
@@ -182,10 +177,10 @@ function DetalheModal({ diaId, onClose, onUpdate }: {
               <>
                 <button
                   className="btn btn-outline"
-                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: podeReabrir ? 'var(--accent-blue)' : 'var(--text-muted)', borderColor: podeReabrir ? 'var(--accent-blue)' : 'var(--border)' }}
+                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: 'var(--accent-blue)', borderColor: 'var(--accent-blue)' }}
                   onClick={handleReabrir}
-                  disabled={reabrindo || !podeReabrir}
-                  title={podeReabrir ? 'Reabrir este dia para edições' : 'Só é possível reabrir o dia de hoje'}
+                  disabled={reabrindo}
+                  title="Reabrir este dia para edições"
                 >
                   {reabrindo
                     ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
