@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle, AlertOctagon, Target, Crosshair, TrendingUp, BarChart2, Clock } from 'lucide-react'
+import { CheckCircle, AlertOctagon, Target, Crosshair, TrendingUp, BarChart2, Clock, CalendarDays } from 'lucide-react'
 import { Preset, computeFiltro, PRESETS } from './components/RelatoriosShared'
 
 // Componentes extraídos
@@ -11,12 +11,14 @@ import AbaErros from './components/AbaErros'
 import AbaEficienciaMeta from './components/AbaEficienciaMeta'
 import AbaAtivos from './components/AbaAtivos'
 import AbaDiaSemana from './components/AbaDiaSemana'
+import AbaHorarios from './components/AbaHorarios'
 
 const TABS = [
   { key: 'disciplina',   label: 'Disciplina',               icon: CheckCircle },
   { key: 'meta',         label: 'Eficiência de Meta',       icon: Target },
   { key: 'erros',        label: 'Erros & Impacto',          icon: AlertOctagon },
   { key: 'dias-semana',  label: 'Dias da Semana',           icon: Clock },
+  { key: 'horarios',     label: 'Horários',                 icon: CalendarDays },
   { key: 'ativos',       label: 'Ativos',                   icon: BarChart2 },
   { key: 'estrategias',  label: 'Origem da Entrada',        icon: Crosshair },
   { key: 'performance',  label: 'Performance por Período',  icon: TrendingUp },
@@ -91,6 +93,7 @@ export default function Relatorios() {
         {aba === 'meta'        && <AbaEficienciaMeta filtro={filtro} />}
         {aba === 'ativos'      && <AbaAtivos filtro={filtro} />}
         {aba === 'dias-semana' && <AbaDiaSemana filtro={filtro} />}
+        {aba === 'horarios'    && <AbaHorarios filtro={filtro} />}
       </div>
       
     </div>

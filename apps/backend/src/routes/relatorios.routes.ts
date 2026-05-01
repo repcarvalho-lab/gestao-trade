@@ -347,6 +347,22 @@ router.get('/dias-semana', catchAsync(async (req: Request, res: Response) => {
   res.json({ diasSemana })
 }))
 
+router.get('/horarios', catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user!.userId
+  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+
+  const trades = await prisma.trade.findMany({
+    where: {
+      userId,
+      status: { in: ['WIN', 'LOSS'] },
+      ...buildTradeFilter(inicio, fim),
+    },
+    select: { status: true, resultado: true, horario: true },
+  })
+
+  res.json({ trades })
+}))
+
 router.get('/score', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
   const { inicio, fim } = req.query as { inicio?: string; fim?: string }
