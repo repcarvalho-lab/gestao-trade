@@ -68,12 +68,14 @@ interface PainelState {
     valor: number
     motivoId?: string
     motivoOutro?: string
+    horario?: string
   }) => Promise<Trade>
   editarTrade: (tradeId: string, updates: {
     ativo?: string
     valor?: number
     motivoId?: string | null
     motivoOutro?: string | null
+    horario?: string
   }) => Promise<void>
   marcarResultado: (tradeId: string, resultado: 'WIN' | 'LOSS') => Promise<void>
   excluirTrade: (tradeId: string) => Promise<void>

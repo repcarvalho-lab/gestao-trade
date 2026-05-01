@@ -164,6 +164,7 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
   const [valor, setValor] = useState(() => getValorSugerido(sugestaoTipo))
   const [motivoId, setMotivoId] = useState('')
   const [motivoOutro, setMotivoOutro] = useState('')
+  const [horario, setHorario] = useState(() => new Date().toTimeString().slice(0, 5))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const motivoSelecionado = motivos.find(m => m.id === motivoId)
@@ -177,10 +178,12 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
     if (motivoSelecionado?.nome === 'Outro' && !motivoOutro.trim()) { setError('Descreva a origem'); return }
     setLoading(true)
     try {
+      const dataIso = `${dia.date.slice(0, 10)}T${horario}:00.000Z`
       await criarTrade({
         tipo, ativo: ativo.trim().toUpperCase(), valor: parseFloat(valor),
         motivoId: motivoSelecionado?.nome !== 'Outro' ? motivoId : undefined,
         motivoOutro: motivoSelecionado?.nome === 'Outro' ? motivoOutro : undefined,
+        horario: dataIso,
       })
       await fetchDiaAberto()
       onCreated()
@@ -230,12 +233,18 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
               ))}
             </div>
           </div>
-          <div>
-            <label className="label" htmlFor="trade-ativo">Ativo</label>
-            <select id="trade-ativo" className="input" value={ativo} onChange={e => setAtivo(e.target.value)} required autoFocus>
-              <option value="">Selecione...</option>
-              {ativosOp.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)}
-            </select>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ flex: 1 }}>
+              <label className="label" htmlFor="trade-ativo">Ativo</label>
+              <select id="trade-ativo" className="input" value={ativo} onChange={e => setAtivo(e.target.value)} required autoFocus>
+                <option value="">Selecione...</option>
+                {ativosOp.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)}
+              </select>
+            </div>
+            <div style={{ width: '120px' }}>
+              <label className="label" htmlFor="trade-horario">Horário</label>
+              <input id="trade-horario" className="input" type="time" value={horario} onChange={e => setHorario(e.target.value)} required />
+            </div>
           </div>
           <div>
             <label className="label" htmlFor="trade-valor">Valor de Entrada (US$)</label>
@@ -278,6 +287,10 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
   const { editarTrade } = usePainelStore()
   const [ativo, setAtivo] = useState(trade.ativo)
   const [valor, setValor] = useState(String(trade.valor))
+  const [horario, setHorario] = useState(() => {
+    try { return new Date(trade.horario).toTimeString().slice(0, 5) }
+    catch { return new Date().toTimeString().slice(0, 5) }
+  })
   const [motivoId, setMotivoId] = useState(trade.motivo ? motivos.find(m => m.nome === trade.motivo?.nome)?.id ?? '' : '')
   const [motivoOutro, setMotivoOutro] = useState(trade.motivoOutro ?? '')
   const [loading, setLoading] = useState(false)
@@ -289,11 +302,14 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
     if (!ativo.trim()) { setError('Informe o ativo'); return }
     setLoading(true)
     try {
+      // Usa a data do trade para preservar o dia, mas atualiza a hora
+      const dataIso = trade.horario ? `${trade.horario.slice(0, 10)}T${horario}:00.000Z` : undefined
       await editarTrade(trade.id, {
         ativo: ativo.trim().toUpperCase(),
         valor: parseFloat(valor),
         motivoId: motivoSelecionado && motivoSelecionado.nome !== 'Outro' ? motivoId : null,
         motivoOutro: motivoSelecionado?.nome === 'Outro' ? motivoOutro : null,
+        horario: dataIso,
       })
       onSaved()
     } catch (err: unknown) {
@@ -318,12 +334,18 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
           <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={onClose}><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label className="label" htmlFor="edit-ativo">Ativo</label>
-            <select id="edit-ativo" className="input" value={ativo} onChange={e => setAtivo(e.target.value)} required autoFocus>
-              <option value="">Selecione...</option>
-              {ativosOp.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)}
-            </select>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ flex: 1 }}>
+              <label className="label" htmlFor="edit-ativo">Ativo</label>
+              <select id="edit-ativo" className="input" value={ativo} onChange={e => setAtivo(e.target.value)} required autoFocus>
+                <option value="">Selecione...</option>
+                {ativosOp.map(a => <option key={a.id} value={a.nome}>{a.nome}</option>)}
+              </select>
+            </div>
+            <div style={{ width: '120px' }}>
+              <label className="label" htmlFor="edit-horario">Horário</label>
+              <input id="edit-horario" className="input" type="time" value={horario} onChange={e => setHorario(e.target.value)} required />
+            </div>
           </div>
           <div>
             <label className="label" htmlFor="edit-valor">Valor (US$)</label>
