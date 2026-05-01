@@ -77,7 +77,7 @@ function SecaoCard({ titulo, descricao, icon: Icon, children }: {
   titulo: string; descricao?: string; icon: React.ElementType; children: React.ReactNode
 }) {
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: '0.75rem', overflow: 'hidden', marginBottom: '1.25rem' }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: '0.75rem', overflow: 'hidden' }}>
       <div style={{ padding: '0.875rem 1.25rem', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
         <Icon size={15} style={{ color: 'var(--accent-blue)', flexShrink: 0 }} />
         <div>
@@ -106,8 +106,9 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
         Configure metas, gestão de risco e estrutura Martingale. As alterações afetam os cálculos do Painel do Dia.
       </p>
 
-      {/* Metas Diárias */}
-      <SecaoCard titulo="Metas Diárias" descricao="Percentuais de referência para encerramento do dia e limites comportamentais." icon={TrendingUp}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+        {/* Metas Diárias */}
+        <SecaoCard titulo="Metas Diárias" descricao="Percentuais de referência para encerramento do dia e limites comportamentais." icon={TrendingUp}>
         <ConfigField id="metaIdealPct" label="Meta Ideal (%)"
           desc="Ganho mínimo para considerar encerrar o dia."
           type="number" step="0.001" min="0" max="1"
@@ -278,11 +279,8 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
             {form.mg2Habilitado ? 3 : 2}
           </div>
         </div>
-      </SecaoCard>
-
-
-
-      <SaveButton onSave={onSave} saving={saving} saved={saved} />
+        </SecaoCard>
+      </div>      <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
   )
 }
