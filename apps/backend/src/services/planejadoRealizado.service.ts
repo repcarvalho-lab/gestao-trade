@@ -116,17 +116,49 @@ export async function getPlanejadoRealizado(userId: string) {
     return sum
   }
 
+  // Coleta todos os meses distintos que têm relatórios OU movimentos
+  const allMonthsSet = new Set<string>();
+  meses.forEach(m => allMonthsSet.add(m.mes));
+  todosMovimentos.forEach(mov => allMonthsSet.add(mov.mes));
+  if (config?.dataSaldoInicial) {
+    allMonthsSet.add(config.dataSaldoInicial.toISOString().slice(0, 7));
+  }
+  const allMonths = Array.from(allMonthsSet).sort();
+
   // Dynamically calculate Banca Global to reflect any config changes
   let currentCorretora = config?.saldoInicialCorretora ?? 0;
   let currentReservaUSD = config?.saldoInicialReserva ?? 0;
 
-  const mesesComMov = meses.map(m => {
+  const mesesComMov = allMonths.map(mesStr => {
+    // Busca o relatório mensal se existir
+    const m = meses.find(x => x.mes === mesStr) || {
+      id: `synthetic-${mesStr}`,
+      userId,
+      mes: mesStr,
+      dataBase: new Date(`${mesStr}-01T12:00:00Z`),
+      diasOperados: 0,
+      diasPositivos: 0,
+      diasNegativos: 0,
+      capitalInicial: currentCorretora,
+      capitalFinal: currentCorretora,
+      vlDepositadoSacado: 0,
+      lucroTotal: 0,
+      rentabMedia: 0,
+      rentabTotal: 0,
+      retornoClassif: 'CONSERVADOR' as any,
+      taxaAcertoMedia: 0,
+      maiorGain: 0,
+      maiorLoss: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
     // Aportes e saques na corretora neste mes
-    const movsCorretoraMes = todosMovimentos.filter(mov => mov.mes === m.mes && mov.conta === 'CORRETORA');
+    const movsCorretoraMes = todosMovimentos.filter(mov => mov.mes === mesStr && mov.conta === 'CORRETORA');
     const netCorretora = movsCorretoraMes.reduce((s, mov) => s + (mov.tipo === 'DEPOSITO' ? mov.valorUSD : -mov.valorUSD), 0);
     
     // Aportes e saques na reserva neste mes
-    const movsReservaMes = todosMovimentos.filter(mov => mov.mes === m.mes && mov.conta === 'RESERVA');
+    const movsReservaMes = todosMovimentos.filter(mov => mov.mes === mesStr && mov.conta === 'RESERVA');
     const netReservaBRL = movsReservaMes.reduce((s, mov) => s + (mov.tipo === 'DEPOSITO' ? mov.valorBRL : -mov.valorBRL), 0);
     const netReservaUSD = netReservaBRL / (config?.cambioCompra || 5.0);
 
@@ -141,9 +173,9 @@ export async function getPlanejadoRealizado(userId: string) {
       ...m,
       bancaGlobalInicial,
       bancaGlobalFinal,
-      aporteReal: movMap[m.mes]?.aporte || 0,
-      saqueReal: movMap[m.mes]?.saque || 0,
-      pesoNet: movMap[m.mes]?.pesoNet || 0,
+      aporteReal: movMap[mesStr]?.aporte || 0,
+      saqueReal: movMap[mesStr]?.saque || 0,
+      pesoNet: movMap[mesStr]?.pesoNet || 0,
     }
   })
 
@@ -164,50 +196,7 @@ export async function getPlanejadoRealizado(userId: string) {
     }
   }
 
-  // Inject config month if configured and not present
-  if (config?.dataSaldoInicial && (config.saldoInicialCorretora != null || config.saldoInicialReserva != null)) {
-    const mesConfigStr = config.dataSaldoInicial.toISOString().slice(0, 7)
-    if (!mesesComMov.some(m => m.mes === mesConfigStr) && mesAtualComMov?.mes !== mesConfigStr) {
-      const reserva = getReservaAt(mesConfigStr)
-      const reservaAnt = getReservaAnteriorAt(mesConfigStr)
-      
-      const inicialCorretora = config.saldoInicialCorretora ?? 0;
-      const inicialReserva = config.saldoInicialReserva ?? 0;
-      const totalGlobal = inicialCorretora + inicialReserva;
-
-      const aporte = movMap[mesConfigStr]?.aporte || 0;
-      const saque = movMap[mesConfigStr]?.saque || 0;
-
-      mesesComMov.push({
-        id: 'config-saldo-inicial',
-        userId,
-        mes: mesConfigStr,
-        dataBase: config.dataSaldoInicial,
-        diasOperados: 0,
-        diasPositivos: 0,
-        diasNegativos: 0,
-        // capitalInicial is the "Corretora" balance. The user specifies it directly.
-        capitalInicial: inicialCorretora,
-        capitalFinal: inicialCorretora + aporte - saque,
-        vlDepositadoSacado: 0,
-        lucroTotal: 0,
-        rentabMedia: 0,
-        rentabTotal: 0,
-        retornoClassif: 'CONSERVADOR',
-        taxaAcertoMedia: 0,
-        maiorGain: 0,
-        maiorLoss: 0,
-        createdAt: config.dataSaldoInicial,
-        updatedAt: config.dataSaldoInicial,
-        bancaGlobalInicial: totalGlobal,
-        bancaGlobalFinal: totalGlobal + aporte - saque,
-        aporteReal: aporte,
-        saqueReal: saque,
-        pesoNet: movMap[mesConfigStr]?.pesoNet || 0,
-      } as any)
-      mesesComMov.sort((a, b) => a.mes.localeCompare(b.mes))
-    }
-  }
+  // The config month injection is no longer needed since it's already added to allMonthsSet
 
   return {
     meses: mesesComMov,
