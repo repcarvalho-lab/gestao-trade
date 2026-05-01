@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Activity, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import api from '../../../services/api'
 import { Filtro, DisciplinaData, buildParams, fmtUSD, fmtPct, TooltipEscuro } from './RelatoriosShared'
+
+const ERROR_COLORS = ['#f43f5e', '#f97316', '#f59e0b', '#ef4444', '#db2777', '#d946ef', '#8b5cf6']
 
 // ─── Componente MetricRow ──────────────────────────────────────
 
@@ -44,7 +46,6 @@ export default function AbaDisciplina({ filtro }: { filtro: Filtro }) {
   if (!data || data.totalDias === 0) return <div className="p-16 text-center text-text-muted">Nenhum dia fechado encontrado.</div>
 
   const { comDisciplina: com, semDisciplina: sem, principaisErros, errosComDisciplina } = data
-  const maxErros = principaisErros[0]?.ocorrencias ?? 1
 
   const comparativoData = [
     { label: '% Dias Positivos', com: com.pctPositivos * 100, sem: sem.pctPositivos * 100 },
@@ -143,28 +144,39 @@ export default function AbaDisciplina({ filtro }: { filtro: Filtro }) {
             <AlertTriangle size={16} className="text-accent-warn" />
             <h2 className="text-sm font-bold text-text-primary m-0">Principais Erros — Dias Sem Disciplina</h2>
           </div>
-          <div className="p-5 flex flex-col gap-4">
-            {principaisErros.map((erro, i) => {
-              const pct = erro.ocorrencias / Math.max(sem.total, 1)
-              const comCount = errosComDisciplina.find(e => e.nome === erro.nome)?.ocorrencias ?? 0
-              return (
-                <div key={erro.nome} className="flex flex-col gap-1.5 group">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-[#f43f5e]/15 text-[#f43f5e] text-[0.65rem] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                      <span className="text-sm text-text-primary font-medium group-hover:text-[#f43f5e] transition-colors">{erro.nome}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {comCount > 0 && <span className="text-xs text-text-muted hidden sm:inline-block">também {comCount}× c/ disciplina</span>}
-                      <span className="text-[0.82rem] font-bold text-[#f43f5e] min-w-[60px] text-right">{erro.ocorrencias}× ({(pct * 100).toFixed(0)}% dos dias)</span>
+          <div className="p-5 flex flex-col md:flex-row gap-8 items-center">
+            <div className="w-[200px] h-[200px] shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={principaisErros} dataKey="ocorrencias" nameKey="nome" cx="50%" cy="50%" innerRadius={60} outerRadius={85} stroke="none">
+                    {principaisErros.map((_, i) => <Cell key={i} fill={ERROR_COLORS[i % ERROR_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip content={<TooltipEscuro />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex-1 flex flex-col gap-3.5 w-full">
+              {principaisErros.map((erro, i) => {
+                const pct = erro.ocorrencias / Math.max(sem.total, 1)
+                const comCount = errosComDisciplina.find(e => e.nome === erro.nome)?.ocorrencias ?? 0
+                return (
+                  <div key={erro.nome} className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-3 h-3 rounded-sm shrink-0" style={{ background: ERROR_COLORS[i % ERROR_COLORS.length] }} />
+                        <span className="text-sm text-text-primary font-medium">{erro.nome}</span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {comCount > 0 && <span className="text-xs text-text-muted hidden sm:inline-block">também {comCount}× c/ disciplina</span>}
+                        <span className="text-[0.82rem] font-bold text-text-muted min-w-[60px] text-right">
+                          {erro.ocorrencias}× <span className="text-xs font-normal">({(pct * 100).toFixed(0)}% dos dias)</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="h-1 rounded-full bg-[#f43f5e]/10 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-[#f43f5e]/60" style={{ width: `${(erro.ocorrencias / maxErros) * 100}%` }} />
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
