@@ -92,13 +92,23 @@ export default function PlanejadoRealizado() {
 
     const pontos: any[] = []
 
-    for (const m of meses) {
+    for (let i = 0; i < meses.length; i++) {
+      const m = meses[i]
       const net = (m.aporteReal || 0) - (m.saqueReal || 0)
       const pesoNet = m.pesoNet || 0
       
-      const cons = prevCons * (1 + config.retornoConservador) + net + (pesoNet * config.retornoConservador)
-      const real = prevReal * (1 + config.retornoRealista)    + net + (pesoNet * config.retornoRealista)
-      const agr  = prevAgr  * (1 + config.retornoAgressivo)   + net + (pesoNet * config.retornoAgressivo)
+      let cons, real, agr
+      
+      if (i === 0) {
+        // Ponto de partida: sem projeção de crescimento, igual ao saldo final real do mês
+        cons = m.bancaGlobalFinal
+        real = m.bancaGlobalFinal
+        agr = m.bancaGlobalFinal
+      } else {
+        cons = prevCons * (1 + config.retornoConservador) + net + (pesoNet * config.retornoConservador)
+        real = prevReal * (1 + config.retornoRealista)    + net + (pesoNet * config.retornoRealista)
+        agr  = prevAgr  * (1 + config.retornoAgressivo)   + net + (pesoNet * config.retornoAgressivo)
+      }
       
       prevCons = cons; prevReal = real; prevAgr = agr
       pontos.push({
@@ -116,16 +126,27 @@ export default function PlanejadoRealizado() {
 
     // Ponto do mês corrente
     if (mesAtual) {
+      const isFirst = meses.length === 0
       const netAtual = (mesAtual.aporteReal || 0) - (mesAtual.saqueReal || 0)
       const pesoNet = mesAtual.pesoNet || 0
       
-      const cons = prevCons * (1 + config.retornoConservador) + netAtual + (pesoNet * config.retornoConservador)
-      const real = prevReal * (1 + config.retornoRealista) + netAtual + (pesoNet * config.retornoRealista)
-      const agr  = prevAgr  * (1 + config.retornoAgressivo) + netAtual + (pesoNet * config.retornoAgressivo)
+      const realizadoFinal = mesAtual.bancaGlobalFinal ?? (mesAtual.bancaGlobalInicial + netAtual)
+      
+      let cons, real, agr
+      
+      if (isFirst) {
+        cons = realizadoFinal
+        real = realizadoFinal
+        agr = realizadoFinal
+      } else {
+        cons = prevCons * (1 + config.retornoConservador) + netAtual + (pesoNet * config.retornoConservador)
+        real = prevReal * (1 + config.retornoRealista) + netAtual + (pesoNet * config.retornoRealista)
+        agr  = prevAgr  * (1 + config.retornoAgressivo) + netAtual + (pesoNet * config.retornoAgressivo)
+      }
       
       pontos.push({
         mes:         mesAtual.mes,
-        realizado:   mesAtual.bancaGlobalFinal ?? (mesAtual.bancaGlobalInicial + netAtual),
+        realizado:   realizadoFinal,
         conservador: Math.round(cons * 100) / 100,
         realista:    Math.round(real * 100) / 100,
         agressivo:   Math.round(agr  * 100) / 100,
