@@ -20,7 +20,8 @@ export interface Configuration {
   retornoAgressivo: number
   aporteValor: number | null
   aporteMes: string | null
-  saldoInicial: number | null
+  saldoInicialCorretora: number | null
+  saldoInicialReserva: number | null
   dataSaldoInicial: string | null
 }
 

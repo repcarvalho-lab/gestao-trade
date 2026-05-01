@@ -313,11 +313,19 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
         <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Saldo Inicial do Sistema</h3>
         <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Configuração do saldo base e a data em que o controle foi iniciado (Banca Global).</p>
         
-        <ConfigField id="saldoInicial" label="Saldo Inicial (Banca Global)"
-          desc="Valor total (US$) inicial antes de iniciar as operações."
-          type="number" step="0.01" min="0"
-          value={form.saldoInicial ?? ''}
-          onChange={v => set('saldoInicial', v ? String(Number(v)) : '')} suffix="US$" />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <ConfigField id="saldoInicialCorretora" label="Saldo Inicial (Corretora)"
+            desc="Capital (US$) em corretora."
+            type="number" step="0.01" min="0"
+            value={form.saldoInicialCorretora ?? ''}
+            onChange={v => set('saldoInicialCorretora', v ? String(Number(v)) : '')} suffix="US$" />
+
+          <ConfigField id="saldoInicialReserva" label="Saldo Inicial (Reserva)"
+            desc="Capital (US$) em caixa."
+            type="number" step="0.01" min="0"
+            value={form.saldoInicialReserva ?? ''}
+            onChange={v => set('saldoInicialReserva', v ? String(Number(v)) : '')} suffix="US$" />
+        </div>
 
         <ConfigField id="dataSaldoInicial" label="Mês/Ano do Saldo Inicial"
           desc="Mês base para que os gráficos puxem esse valor inicial."

@@ -51,10 +51,11 @@ model Configuration {
   updatedAt           DateTime @updatedAt
   aporteMes           String?
   aporteValor         Float?
-  saquesMesInicio     String?
-  saque               Float?
-  saldoInicial        Float?
-  dataSaldoInicial    DateTime?
+  saquesMesInicio       String?
+  saque                 Float?
+  saldoInicialCorretora Float?
+  saldoInicialReserva   Float?
+  dataSaldoInicial      DateTime?
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

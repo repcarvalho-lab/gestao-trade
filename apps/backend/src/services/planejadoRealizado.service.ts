@@ -135,11 +135,16 @@ export async function getPlanejadoRealizado(userId: string) {
   }
 
   // Inject config month if configured and not present
-  if (config?.dataSaldoInicial && config?.saldoInicial != null) {
+  if (config?.dataSaldoInicial && (config.saldoInicialCorretora != null || config.saldoInicialReserva != null)) {
     const mesConfigStr = config.dataSaldoInicial.toISOString().slice(0, 7)
     if (!mesesComMov.some(m => m.mes === mesConfigStr) && mesAtualComMov?.mes !== mesConfigStr) {
       const reserva = getReservaAt(mesConfigStr)
       const reservaAnt = getReservaAnteriorAt(mesConfigStr)
+      
+      const inicialCorretora = config.saldoInicialCorretora ?? 0;
+      const inicialReserva = config.saldoInicialReserva ?? 0;
+      const totalGlobal = inicialCorretora + inicialReserva;
+
       mesesComMov.push({
         id: 'config-saldo-inicial',
         userId,
@@ -148,8 +153,9 @@ export async function getPlanejadoRealizado(userId: string) {
         diasOperados: 0,
         diasPositivos: 0,
         diasNegativos: 0,
-        capitalInicial: config.saldoInicial - reservaAnt,
-        capitalFinal: config.saldoInicial - reserva,
+        // capitalInicial is the "Corretora" balance. The user specifies it directly.
+        capitalInicial: inicialCorretora,
+        capitalFinal: inicialCorretora,
         vlDepositadoSacado: 0,
         lucroTotal: 0,
         rentabMedia: 0,
@@ -160,8 +166,8 @@ export async function getPlanejadoRealizado(userId: string) {
         maiorLoss: 0,
         createdAt: config.dataSaldoInicial,
         updatedAt: config.dataSaldoInicial,
-        bancaGlobalInicial: config.saldoInicial,
-        bancaGlobalFinal: config.saldoInicial,
+        bancaGlobalInicial: totalGlobal,
+        bancaGlobalFinal: totalGlobal,
         aporteReal: movMap[mesConfigStr]?.aporte || 0,
         saqueReal: movMap[mesConfigStr]?.saque || 0,
         pesoNet: movMap[mesConfigStr]?.pesoNet || 0,

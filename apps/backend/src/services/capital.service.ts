@@ -34,14 +34,9 @@ export async function getCapitalStatus(userId: string) {
     const config = await prisma.configuration.findUnique({ where: { userId } })
     const gtDate = ultimoDia ? ultimoDia.date : (config?.dataSaldoInicial ?? undefined)
     
-    // Calcula reservas até a data do saldo inicial se formos usá-lo, para deduzir da banca global
-    let saldoReservaAntes = 0
-    if (!ultimoDia && config?.saldoInicial != null) {
-      const movsAntes = await prisma.depositoSaque.findMany({
-        where: { userId, conta: 'RESERVA', data: { lte: config.dataSaldoInicial! } }
-      })
-      saldoReservaAntes = movsAntes.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0) / (config.cambioCompra || 5.0)
-    }
+    // Nao precisamos mais deduzir a reserva da banca global para achar a corretora
+    // pois agora o usuário configura separadamente.
+    const baseCorretora = ultimoDia ? (ultimoDia.capitalFinal ?? 0) : (config?.saldoInicialCorretora ?? 0)
 
     const movsAnteriores = await prisma.depositoSaque.findMany({
       where: {
@@ -56,23 +51,29 @@ export async function getCapitalStatus(userId: string) {
       0
     )
 
-    const baseCorretora = ultimoDia ? (ultimoDia.capitalFinal ?? 0) : (config?.saldoInicial ? config.saldoInicial - saldoReservaAntes : 0)
     capitalCorretoraUSD = baseCorretora + netAnteriores
   }
 
   // 2. Capital em Reserva (puramente livro-caixa BRL)
+  const configReserva = await prisma.configuration.findUnique({ where: { userId } })
+  const cambio = configReserva?.cambioCompra || 5.0
+
   const movsReserva = await prisma.depositoSaque.findMany({
-    where: { userId, conta: 'RESERVA' }
+    where: { 
+      userId, 
+      conta: 'RESERVA',
+      data: configReserva?.dataSaldoInicial ? { gt: configReserva.dataSaldoInicial } : undefined
+    }
   })
 
-  const saldoReservaBRL = movsReserva.reduce(
+  const baseReservaBRL = (configReserva?.saldoInicialReserva ?? 0) * cambio
+
+  const saldoReservaBRL = baseReservaBRL + movsReserva.reduce(
     (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL),
     0
   )
 
   // 3. Banca Global (USD)
-  const config = await prisma.configuration.findUnique({ where: { userId } })
-  const cambio = config?.cambioCompra || 5.0
   const reservaOuroUSD = saldoReservaBRL / cambio
   
   const bancaGlobalUSD = capitalCorretoraUSD + reservaOuroUSD
