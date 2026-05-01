@@ -66,9 +66,15 @@ export async function criarDia(userId: string, capitalInicialOverride?: number, 
     0
   )
 
-  const capitalInicial = capitalInicialOverride ?? ((ultimoDia?.capitalFinal ?? 0) + netAnteriores)
-  if (!capitalInicial && !capitalInicialOverride) {
-    throw new AppError('Informe o capital inicial para este dia.', 400)
+  const config = await prisma.configuration.findUnique({ where: { userId } })
+
+  const capitalInicial = capitalInicialOverride ?? 
+                         (ultimoDia 
+                           ? ((ultimoDia.capitalFinal ?? 0) + netAnteriores)
+                           : ((config?.saldoInicialCorretora ?? 0) + netAnteriores))
+
+  if (capitalInicial === undefined || capitalInicial === null) {
+    throw new AppError('Não foi possível determinar o capital inicial para este dia.', 400)
   }
 
   // 2. Busca depósitos que foram realizados EXACTAMENTE no dia de hoje (antes do dia ser criado)
@@ -102,7 +108,7 @@ export async function criarDia(userId: string, capitalInicialOverride?: number, 
     },
   })
   
-  const config = await prisma.configuration.findUnique({ where: { userId } })
+
   const cambio = config?.cambioCompra || 5.0
 
   const netHojeReservaBRL = movsHojeReserva.reduce(

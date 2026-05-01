@@ -59,28 +59,22 @@ function StatusBadge({ status, stopProximo, isClosed }: { status: string; stopPr
 }
 
 // ─── Modal: Iniciar Dia ───────────────────────────────────────
-function IniciarDiaModal({ temDiasAnteriores, onClose, onCreated }: {
-  temDiasAnteriores: boolean; onClose: () => void; onCreated: () => void
+function IniciarDiaModal({ onClose, onCreated }: {
+  onClose: () => void; onCreated: () => void
 }) {
   const { criarDia } = usePainelStore()
   const hoje = new Date()
   const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
   const [data, setData] = useState(hojeStr)
-  const [capital, setCapital] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const isRetroativo = data < hojeStr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    let val: number | undefined
-    if (!temDiasAnteriores) {
-      val = parseFloat(capital.replace(',', '.'))
-      if (isNaN(val) || val <= 0) { setError('Informe um capital válido.'); return }
-    }
     setLoading(true)
     try {
-      await criarDia(val, data)
+      await criarDia(undefined, data)
       onCreated()
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } }
@@ -112,12 +106,6 @@ function IniciarDiaModal({ temDiasAnteriores, onClose, onCreated }: {
               </div>
             )}
           </div>
-          {!temDiasAnteriores && (
-            <div>
-              <label className="label" htmlFor="capital-input">Capital Inicial do Dia (US$)</label>
-              <input id="capital-input" className="input" type="number" step="0.01" min="0.01" placeholder="0.00" value={capital} onChange={e => setCapital(e.target.value)} autoFocus required style={{ fontSize: '1.15rem', padding: '0.75rem' }} />
-            </div>
-          )}
           {error && <div style={{ padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
@@ -1081,7 +1069,6 @@ function PainelDiaInner() {
 
         {showIniciar && (
           <IniciarDiaModal
-            temDiasAnteriores={temDiasAnteriores}
             onClose={() => setShowIniciar(false)}
             onCreated={() => { setShowIniciar(false); fetchDiaAberto() }}
           />
