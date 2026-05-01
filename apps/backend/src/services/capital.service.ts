@@ -31,7 +31,18 @@ export async function getCapitalStatus(userId: string) {
       orderBy: { date: 'desc' },
     })
 
-    const gtDate = ultimoDia ? ultimoDia.date : undefined
+    const config = await prisma.configuration.findUnique({ where: { userId } })
+    const gtDate = ultimoDia ? ultimoDia.date : (config?.dataSaldoInicial ?? undefined)
+    
+    // Calcula reservas até a data do saldo inicial se formos usá-lo, para deduzir da banca global
+    let saldoReservaAntes = 0
+    if (!ultimoDia && config?.saldoInicial != null) {
+      const movsAntes = await prisma.depositoSaque.findMany({
+        where: { userId, conta: 'RESERVA', data: { lte: config.dataSaldoInicial! } }
+      })
+      saldoReservaAntes = movsAntes.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0) / (config.cambioCompra || 5.0)
+    }
+
     const movsAnteriores = await prisma.depositoSaque.findMany({
       where: {
         userId,
@@ -45,7 +56,8 @@ export async function getCapitalStatus(userId: string) {
       0
     )
 
-    capitalCorretoraUSD = (ultimoDia?.capitalFinal ?? 0) + netAnteriores
+    const baseCorretora = ultimoDia ? (ultimoDia.capitalFinal ?? 0) : (config?.saldoInicial ? config.saldoInicial - saldoReservaAntes : 0)
+    capitalCorretoraUSD = baseCorretora + netAnteriores
   }
 
   // 2. Capital em Reserva (puramente livro-caixa BRL)

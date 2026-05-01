@@ -126,11 +126,47 @@ export async function getPlanejadoRealizado(userId: string) {
     const reservaAnt = getReservaAnteriorAt(mesAtual.mes)
     mesAtualComMov = {
       ...mesAtual,
-      bancaGlobalInicial: mesAtual.capitalInicial + reservaAnt, // Ponto de partida do mês corrente (usa reservaAnt pois a reserva pode ter mudado no mês atual, e o capital inicial é do início do mês)
-      bancaGlobalFinal: mesAtual.capitalInicial + reservaAtual, // Estimativa parcial com reserva atual
+      bancaGlobalInicial: mesAtual.capitalInicial + reservaAnt,
+      bancaGlobalFinal: mesAtual.capitalInicial + reservaAtual,
       aporteReal: movMap[mesAtual.mes]?.aporte || 0,
       saqueReal: movMap[mesAtual.mes]?.saque || 0,
       pesoNet: movMap[mesAtual.mes]?.pesoNet || 0,
+    }
+  }
+
+  // Inject config month if configured and not present
+  if (config?.dataSaldoInicial && config?.saldoInicial != null) {
+    const mesConfigStr = config.dataSaldoInicial.toISOString().slice(0, 7)
+    if (!mesesComMov.some(m => m.mes === mesConfigStr) && mesAtualComMov?.mes !== mesConfigStr) {
+      const reserva = getReservaAt(mesConfigStr)
+      const reservaAnt = getReservaAnteriorAt(mesConfigStr)
+      mesesComMov.push({
+        id: 'config-saldo-inicial',
+        userId,
+        mes: mesConfigStr,
+        dataBase: config.dataSaldoInicial,
+        diasOperados: 0,
+        diasPositivos: 0,
+        diasNegativos: 0,
+        capitalInicial: config.saldoInicial - reservaAnt,
+        capitalFinal: config.saldoInicial - reserva,
+        vlDepositadoSacado: 0,
+        lucroTotal: 0,
+        rentabMedia: 0,
+        rentabTotal: 0,
+        retornoClassif: 'CONSERVADOR',
+        taxaAcertoMedia: 0,
+        maiorGain: 0,
+        maiorLoss: 0,
+        createdAt: config.dataSaldoInicial,
+        updatedAt: config.dataSaldoInicial,
+        bancaGlobalInicial: config.saldoInicial,
+        bancaGlobalFinal: config.saldoInicial,
+        aporteReal: movMap[mesConfigStr]?.aporte || 0,
+        saqueReal: movMap[mesConfigStr]?.saque || 0,
+        pesoNet: movMap[mesConfigStr]?.pesoNet || 0,
+      } as any)
+      mesesComMov.sort((a, b) => a.mes.localeCompare(b.mes))
     }
   }
 

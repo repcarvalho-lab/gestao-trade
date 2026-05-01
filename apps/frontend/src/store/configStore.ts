@@ -20,6 +20,8 @@ export interface Configuration {
   retornoAgressivo: number
   aporteValor: number | null
   aporteMes: string | null
+  saldoInicial: number | null
+  dataSaldoInicial: string | null
 }
 
 interface ConfigState {

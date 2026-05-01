@@ -309,6 +309,23 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
         value={form.cambioVenda ?? 4.8}
         onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
 
+      <div style={{ marginTop: '2rem' }}>
+        <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Saldo Inicial do Sistema</h3>
+        <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Configuração do saldo base e a data em que o controle foi iniciado (Banca Global).</p>
+        
+        <ConfigField id="saldoInicial" label="Saldo Inicial (Banca Global)"
+          desc="Valor total (US$) inicial antes de iniciar as operações."
+          type="number" step="0.01" min="0"
+          value={form.saldoInicial ?? ''}
+          onChange={v => set('saldoInicial', v ? String(Number(v)) : '')} suffix="US$" />
+
+        <ConfigField id="dataSaldoInicial" label="Mês/Ano do Saldo Inicial"
+          desc="Mês base para que os gráficos puxem esse valor inicial."
+          type="month"
+          value={form.dataSaldoInicial ? new Date(form.dataSaldoInicial as string).toISOString().slice(0, 7) : ''}
+          onChange={v => set('dataSaldoInicial', v ? new Date(`${v}-01T12:00:00Z`).toISOString() : '')} />
+      </div>
+
       <p style={{ marginTop: '1.25rem', fontSize: '0.78rem', color: 'var(--text-muted)', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
         💡 Para planejar aportes e saques futuros, acesse a página <strong>Depósitos e Saques</strong>.
       </p>
