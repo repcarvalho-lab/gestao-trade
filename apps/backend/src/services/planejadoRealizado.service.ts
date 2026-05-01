@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma'
+import { getCapitalStatus } from './capital.service'
 
 export async function getPlanejadoRealizado(userId: string) {
   const meses = await prisma.monthlyReport.findMany({
@@ -22,6 +23,14 @@ export async function getPlanejadoRealizado(userId: string) {
     })
     if (ultimoDiaFechadoMesAtual?.capitalFinal != null) {
       mesAtual = { mes: mesAtualStr, capitalInicial: ultimoDiaFechadoMesAtual.capitalFinal }
+    } else {
+      const ultimoDiaGeral = await prisma.tradingDay.findFirst({
+        where: { userId, isClosed: true },
+        orderBy: { date: 'desc' },
+        select: { capitalFinal: true },
+      })
+      const fallbackCapital = ultimoDiaGeral?.capitalFinal ?? config?.saldoInicialCorretora ?? 0;
+      mesAtual = { mes: mesAtualStr, capitalInicial: fallbackCapital }
     }
   }
 
@@ -124,10 +133,12 @@ export async function getPlanejadoRealizado(userId: string) {
   if (mesAtual) {
     const reservaAtual = getReservaAt(mesAtual.mes)
     const reservaAnt = getReservaAnteriorAt(mesAtual.mes)
+    const capitalStatus = await getCapitalStatus(userId)
+    
     mesAtualComMov = {
       ...mesAtual,
       bancaGlobalInicial: mesAtual.capitalInicial + reservaAnt,
-      bancaGlobalFinal: mesAtual.capitalInicial + reservaAtual,
+      bancaGlobalFinal: capitalStatus.bancaGlobalUSD,
       aporteReal: movMap[mesAtual.mes]?.aporte || 0,
       saqueReal: movMap[mesAtual.mes]?.saque || 0,
       pesoNet: movMap[mesAtual.mes]?.pesoNet || 0,
