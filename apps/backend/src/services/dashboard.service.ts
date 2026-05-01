@@ -211,16 +211,28 @@ export async function getDashboard(userId: string) {
   // O primeiro ponto mostra o capital INICIAL (dia anterior ao primeiro pregão),
   // os demais mostram a Banca Global (Corretora + Reserva Histórica) de cada dia fechado.
   const evolucaoCapital: { data: Date; capital: number; resultado: number; rentabilidade: number; totalTrades: number; taxaAcerto: number; aportes?: number; saques?: number }[] = []
+  
+  const movsCorretora = movimentos.filter(m => m.conta === 'CORRETORA')
+  let currentCorretora = config?.saldoInicialCorretora ?? 0
+  let lastDate = new Date(0)
+
   if (dias.length > 0) {
     const dataAntes = new Date(dias[0].date)
     dataAntes.setUTCDate(dataAntes.getUTCDate() - 1)
+    dataAntes.setUTCHours(23, 59, 59, 999)
     
     // Ponto zero: usa capital inicial da corretora + reserva histórica no dia anterior
     const reservaAntes = getReservaNoDia(dataAntes)
-    const capInit = dias[0].capitalInicialReal + reservaAntes
+    const movsAteAntes = movsCorretora.filter(m => m.data <= dataAntes)
+    const netAteAntes = movsAteAntes.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
+    
+    currentCorretora = (config?.saldoInicialCorretora ?? 0) + netAteAntes
+    const capInit = currentCorretora + reservaAntes
 
     evolucaoCapital.push({ data: dataAntes, capital: capInit, resultado: 0, rentabilidade: 0, totalTrades: 0, taxaAcerto: 0 })
+    lastDate = dataAntes
   }
+
   for (const d of dias) {
     const dStr = d.date.toISOString().split('T')[0]
     const mov = movPorData[dStr] || { aportes: 0, saques: 0 }
@@ -228,15 +240,19 @@ export async function getDashboard(userId: string) {
     // Calcular a banca global real daquele dia exato
     const reservaNoDia = getReservaNoDia(d.date)
     
-    // Prioriza o bancaGlobal salvo no banco SE ele já engloba a reserva (foi salvo corretamente na nova versão)
-    // Para saber se ele engloba, verificamos se ele é significativamente maior que o capitalFinal
-    // Mas a forma mais segura de ter um gráfico 100% consistente é sempre somar o capitalFinal com a reservaHistórica.
-    // Se o usuário atualizou o banco ou tem dias antigos sem bancaGlobal, a soma corrige o gap.
-    const capitalCorretora = d.capitalFinal ?? 0
-    let capitalDia = capitalCorretora + reservaNoDia
+    // Dinamicamente calcular a Corretora somando depósitos/saques e o resultado do dia
+    const dayEnd = new Date(d.date)
+    dayEnd.setUTCHours(23, 59, 59, 999)
     
-    // Opcional: Se o d.bancaGlobal for confiável (foi salvo recentemente), ele já é isso. 
-    // Usar o cálculo dinâmico previne o "degrau" quando a reserva do dia for diferente da reservaAtual.
+    const movsNoPeriodo = movsCorretora.filter(m => m.data > lastDate && m.data <= dayEnd)
+    const netMovs = movsNoPeriodo.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
+    
+    currentCorretora += netMovs
+    currentCorretora += (d.resultadoDia ?? 0)
+    
+    const capitalDia = currentCorretora + reservaNoDia
+    
+    lastDate = dayEnd
 
     evolucaoCapital.push({
       data: d.date,
