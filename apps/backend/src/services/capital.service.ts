@@ -4,54 +4,34 @@ import { prisma } from '../lib/prisma'
  * Retorna os saldos das contas e a Banca Global para um usuário
  */
 export async function getCapitalStatus(userId: string) {
-  // 1. Capital Atual na Corretora (puxado do Dia de Trade em aberto, ou do último fechado + novos depósitos)
-  // Como as regras de capital Inicial/Final dependem muito do dia de hoje, a forma mais segura
-  // é buscar o dia em aberto se existir, senão o último fechado se sim.
+  // 1. Capital Atual na Corretora (Calculado dinamicamente para sempre refletir o Saldo Inicial das Configurações)
   let capitalCorretoraUSD = 0
 
+  const config = await prisma.configuration.findUnique({ where: { userId } })
+  const baseCorretora = config?.saldoInicialCorretora ?? 0
+
+  const movsCorretora = await prisma.depositoSaque.findMany({
+    where: { userId, conta: 'CORRETORA' }
+  })
+  const netCorretora = movsCorretora.reduce(
+    (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD),
+    0
+  )
+
+  const diasFechados = await prisma.tradingDay.findMany({
+    where: { userId, isClosed: true },
+    select: { resultadoDia: true }
+  })
+  const lucroFechados = diasFechados.reduce((sum, d) => sum + (d.resultadoDia ?? 0), 0)
+
+  capitalCorretoraUSD = baseCorretora + netCorretora + lucroFechados
+
   const diaAberto = await prisma.tradingDay.findFirst({
-    where: { userId, isClosed: false },
+    where: { userId, isClosed: false }
   })
 
-  // Para garantir precisão com depósitos pós-último dia e antes de um novo dia
-  // já existe lógica similar na criação do dia. Vamos usar o getCapitalCorretora
-  // que consolida o saldo livre.
   if (diaAberto) {
-    // Se há dia aberto, o capital base para novos trades é o "capitalInicialReal" + resultados até o momento
-    // (O resultadoDia já é atualizado dinamicamente quando a trade é fechada, 
-    // mas se quisermos considerar o capital em tempo real para os % podemos usar apenas capitalInicialReal, 
-    // e os cálculos do backend usarão capitalInicialReal anyway).
-    // Para simplificar: na conta de LIMITES DO DIA (ex: Stop), a versão original 
-    // amarra o cálculo apenas no `capitalInicialReal`. Então vamos enviar isso.
-    capitalCorretoraUSD = diaAberto.capitalInicialReal
-  } else {
-    // Busca banco fechado + depósitos orfãos
-    const ultimoDia = await prisma.tradingDay.findFirst({
-      where: { userId, isClosed: true },
-      orderBy: { date: 'desc' },
-    })
-
-    const config = await prisma.configuration.findUnique({ where: { userId } })
-    const gtDate = ultimoDia ? ultimoDia.date : (config?.dataSaldoInicial ?? undefined)
-    
-    // Nao precisamos mais deduzir a reserva da banca global para achar a corretora
-    // pois agora o usuário configura separadamente.
-    const baseCorretora = ultimoDia ? (ultimoDia.capitalFinal ?? 0) : (config?.saldoInicialCorretora ?? 0)
-
-    const movsAnteriores = await prisma.depositoSaque.findMany({
-      where: {
-        userId,
-        conta: 'CORRETORA',
-        data: gtDate ? { gt: gtDate } : undefined,
-      },
-    })
-
-    const netAnteriores = movsAnteriores.reduce(
-      (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD),
-      0
-    )
-
-    capitalCorretoraUSD = baseCorretora + netAnteriores
+    capitalCorretoraUSD += (diaAberto.resultadoDia ?? 0)
   }
 
   // 2. Capital em Reserva (puramente livro-caixa BRL)
