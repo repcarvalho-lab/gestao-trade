@@ -166,7 +166,11 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
     if (motivoSelecionado?.nome === 'Outro' && !motivoOutro.trim()) { setError('Descreva a origem'); return }
     setLoading(true)
     try {
-      const dataIso = `${dia.date.slice(0, 10)}T${horario}:00.000Z`
+      const [yyyy, mm, dd] = dia.date.slice(0, 10).split('-')
+      const [hh, min] = horario.split(':')
+      const localDate = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min))
+      const dataIso = localDate.toISOString()
+
       await criarTrade({
         tipo, ativo: ativo.trim().toUpperCase(), valor: parseFloat(valor),
         motivoId: motivoSelecionado?.nome !== 'Outro' ? motivoId : undefined,
@@ -290,8 +294,14 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
     if (!ativo.trim()) { setError('Informe o ativo'); return }
     setLoading(true)
     try {
-      // Usa a data do trade para preservar o dia, mas atualiza a hora
-      const dataIso = trade.horario ? `${trade.horario.slice(0, 10)}T${horario}:00.000Z` : undefined
+      let dataIso = undefined
+      if (trade.horario) {
+        const [yyyy, mm, dd] = trade.horario.slice(0, 10).split('-')
+        const [hh, min] = horario.split(':')
+        const localDate = new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min))
+        dataIso = localDate.toISOString()
+      }
+      
       await editarTrade(trade.id, {
         ativo: ativo.trim().toUpperCase(),
         valor: parseFloat(valor),
