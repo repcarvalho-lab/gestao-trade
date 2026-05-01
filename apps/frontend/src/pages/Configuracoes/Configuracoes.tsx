@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Save, Plus, Pencil, EyeOff, Eye, Loader2, Check, X, Settings,
   TrendingUp, DollarSign, BarChart2, Tag, AlertTriangle, Trash2,
-  ChevronUp, ChevronDown,
+  ChevronUp, ChevronDown, RefreshCw,
 } from 'lucide-react'
 import { useConfigStore, type Configuration } from '../../store/configStore'
 import { useAnalyticsStore } from '../../store/analyticsStore'
@@ -13,7 +13,7 @@ import { formatPct, formatUSD } from '../../lib/format'
 // ─── Tipos ────────────────────────────────────────────────────
 interface MotivoEntrada { id: string; nome: string; ativo: boolean }
 interface AtivoObj { id: string; nome: string; ativo: boolean; payout: number }
-type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos' | 'ativos' | 'erros'
+type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos' | 'ativos' | 'erros' | 'sistema'
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'estrategia', label: 'Estratégia',          icon: TrendingUp },
@@ -22,6 +22,7 @@ const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
   { key: 'motivos',    label: 'Origem da Entrada',   icon: Tag },
   { key: 'ativos',     label: 'Ativos Disponíveis',    icon: Tag },
   { key: 'erros',      label: 'Tipos de Erro',        icon: AlertTriangle },
+  { key: 'sistema',    label: 'Sistema',              icon: RefreshCw },
 ]
 
 
@@ -881,6 +882,47 @@ function SaveButton({ onSave, saving, saved }: { onSave: () => void; saving: boo
   )
 }
 
+// ─── Aba Sistema / Faxina ─────────────────────────────────────
+function TabSistema() {
+  const [cleaning, setCleaning] = useState(false)
+  const [done, setDone] = useState(false)
+
+  const handleFixReports = async () => {
+    if (!confirm('Esta ação irá recalcular todos os relatórios do zero para corrigir divergências nos gráficos. O processo é seguro e não deleta suas operações reais. Deseja continuar?')) return
+    setCleaning(true)
+    try {
+      await api.post('/trading-days/fix-reports')
+      setDone(true)
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (e) {
+      alert('Erro ao limpar sistema.')
+    } finally {
+      setCleaning(false)
+    }
+  }
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--accent-loss)' }}>Manutenção e Faxina do Sistema</h3>
+      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        Ferramentas para corrigir inconsistências ou divergências de valores nos gráficos.
+      </p>
+
+      <SecaoCard titulo="Recalcular Gráficos (Faxina de Fantasmas)" descricao="Se os gráficos estiverem mostrando valores diferentes da sua Banca Global, use esta opção para forçar o recalculo e remover dados presos." icon={RefreshCw}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.5rem' }}>
+          <div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>Sincronizar Relatórios</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Corrige os pontos iniciais do gráfico e apaga meses/semanas antigos que ficaram presos.</div>
+          </div>
+          <button className="btn" style={{ background: 'var(--accent-loss)', color: '#fff', border: 'none', padding: '0.5rem 1rem' }} onClick={handleFixReports} disabled={cleaning || done}>
+            {cleaning ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Limpando...</> : done ? <><Check size={14} /> Resolvido!</> : 'Executar Sincronização'}
+          </button>
+        </div>
+      </SecaoCard>
+    </div>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────
 export default function Configuracoes() {
   const { config, fetchConfig, updateConfig } = useConfigStore()
@@ -962,6 +1004,7 @@ export default function Configuracoes() {
         {activeTab === 'motivos'    && <TabMotivos />}
         {activeTab === 'ativos'     && <TabAtivos />}
         {activeTab === 'erros'      && <TabErrosDia />}
+        {activeTab === 'sistema'    && <TabSistema />}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
