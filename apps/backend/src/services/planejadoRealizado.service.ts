@@ -156,6 +156,9 @@ export async function getPlanejadoRealizado(userId: string) {
       const inicialReserva = config.saldoInicialReserva ?? 0;
       const totalGlobal = inicialCorretora + inicialReserva;
 
+      const aporte = movMap[mesConfigStr]?.aporte || 0;
+      const saque = movMap[mesConfigStr]?.saque || 0;
+
       mesesComMov.push({
         id: 'config-saldo-inicial',
         userId,
@@ -166,7 +169,7 @@ export async function getPlanejadoRealizado(userId: string) {
         diasNegativos: 0,
         // capitalInicial is the "Corretora" balance. The user specifies it directly.
         capitalInicial: inicialCorretora,
-        capitalFinal: inicialCorretora,
+        capitalFinal: inicialCorretora + aporte - saque,
         vlDepositadoSacado: 0,
         lucroTotal: 0,
         rentabMedia: 0,
@@ -178,9 +181,9 @@ export async function getPlanejadoRealizado(userId: string) {
         createdAt: config.dataSaldoInicial,
         updatedAt: config.dataSaldoInicial,
         bancaGlobalInicial: totalGlobal,
-        bancaGlobalFinal: totalGlobal,
-        aporteReal: movMap[mesConfigStr]?.aporte || 0,
-        saqueReal: movMap[mesConfigStr]?.saque || 0,
+        bancaGlobalFinal: totalGlobal + aporte - saque,
+        aporteReal: aporte,
+        saqueReal: saque,
         pesoNet: movMap[mesConfigStr]?.pesoNet || 0,
       } as any)
       mesesComMov.sort((a, b) => a.mes.localeCompare(b.mes))

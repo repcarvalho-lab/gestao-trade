@@ -84,27 +84,13 @@ export default function PlanejadoRealizado() {
       ? meses[0].bancaGlobalInicial
       : mesAtual!.bancaGlobalInicial
 
-    // Ponto de partida sintético: mês anterior ao primeiro dado, com o capitalInicial
-    const mesRef = meses.length > 0 ? meses[0].mes : mesAtual!.mes
-    const [anoRef, mRef] = mesRef.split('-').map(Number)
-    const dataPrev = new Date(anoRef, mRef - 2, 1)
-    const mesPrev = `${dataPrev.getFullYear()}-${String(dataPrev.getMonth() + 1).padStart(2, '0')}`
-
-    const pontos = [{
-      mes:         mesPrev,
-      realizado:   primeiroCapital,
-      conservador: primeiroCapital,
-      realista:    primeiroCapital,
-      agressivo:   primeiroCapital,
-      parcial:     false,
-      net:         0,
-      aporte:      0,
-      saque:       0,
-    }]
-
+    // O ponto inicial do gráfico será o primeiro mês real que temos.
+    // Vamos usar a bancaGlobalInicial como base para as projeções se não houver mês passado.
     let prevCons = primeiroCapital
     let prevReal = primeiroCapital
     let prevAgr  = primeiroCapital
+
+    const pontos: any[] = []
 
     for (const m of meses) {
       const net = (m.aporteReal || 0) - (m.saqueReal || 0)
@@ -139,7 +125,7 @@ export default function PlanejadoRealizado() {
       
       pontos.push({
         mes:         mesAtual.mes,
-        realizado:   mesAtual.bancaGlobalInicial + netAtual, /* Considera aportes pendentes na banca global do mês atual */
+        realizado:   mesAtual.bancaGlobalFinal ?? (mesAtual.bancaGlobalInicial + netAtual),
         conservador: Math.round(cons * 100) / 100,
         realista:    Math.round(real * 100) / 100,
         agressivo:   Math.round(agr  * 100) / 100,
