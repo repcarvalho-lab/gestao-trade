@@ -106,7 +106,7 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
         Configure metas, gestão de risco e estrutura Martingale. As alterações afetam os cálculos do Painel do Dia.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
         {/* Metas Diárias */}
         <SecaoCard titulo="Metas Diárias" descricao="Percentuais de referência para encerramento do dia e limites comportamentais." icon={TrendingUp}>
         <ConfigField id="metaIdealPct" label="Meta Ideal (%)"
