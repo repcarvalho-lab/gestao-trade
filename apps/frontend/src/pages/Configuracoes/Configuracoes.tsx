@@ -107,179 +107,186 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
-        {/* Metas Diárias */}
-        <SecaoCard titulo="Metas Diárias" descricao="Percentuais de referência para encerramento do dia e limites comportamentais." icon={TrendingUp}>
-        <ConfigField id="metaIdealPct" label="Meta Ideal (%)"
-          desc="Ganho mínimo para considerar encerrar o dia."
-          type="number" step="0.001" min="0" max="1"
-          value={Number((form.metaIdealPct ?? 0.02) * 100).toFixed(2)}
-          onChange={v => set('metaIdealPct', String(Number(v) / 100))} suffix="%" />
-        <ConfigField id="metaMaximaPct" label="Meta Máxima (%)"
-          desc="Percentual bônus — encerrar obrigatoriamente ao atingir."
-          type="number" step="0.001" min="0" max="1"
-          value={Number((form.metaMaximaPct ?? 0.03) * 100).toFixed(2)}
-          onChange={v => set('metaMaximaPct', String(Number(v) / 100))} suffix="%" />
-        <ConfigField id="maxCiclosPorDia" label="Limite de Ciclos por Dia"
-          desc="Número máximo de ciclos permitidos em um único dia operacional."
-          type="number" step="1" min="1"
-          value={form.maxCiclosPorDia ?? 3}
-          onChange={v => set('maxCiclosPorDia', v)} />
-      </SecaoCard>
+        
+        {/* Coluna Esquerda: Metas e Martingale */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Metas Diárias */}
+          <SecaoCard titulo="Metas Diárias" descricao="Percentuais de referência para encerramento do dia e limites comportamentais." icon={TrendingUp}>
+            <ConfigField id="metaIdealPct" label="Meta Ideal (%)"
+              desc="Ganho mínimo para considerar encerrar o dia."
+              type="number" step="0.001" min="0" max="1"
+              value={Number((form.metaIdealPct ?? 0.02) * 100).toFixed(2)}
+              onChange={v => set('metaIdealPct', String(Number(v) / 100))} suffix="%" />
+            <ConfigField id="metaMaximaPct" label="Meta Máxima (%)"
+              desc="Percentual bônus — encerrar obrigatoriamente ao atingir."
+              type="number" step="0.001" min="0" max="1"
+              value={Number((form.metaMaximaPct ?? 0.03) * 100).toFixed(2)}
+              onChange={v => set('metaMaximaPct', String(Number(v) / 100))} suffix="%" />
+            <ConfigField id="maxCiclosPorDia" label="Limite de Ciclos por Dia"
+              desc="Número máximo de ciclos permitidos em um único dia operacional."
+              type="number" step="1" min="1"
+              value={form.maxCiclosPorDia ?? 3}
+              onChange={v => set('maxCiclosPorDia', v)} />
+          </SecaoCard>
 
-      {/* Gestão de Risco */}
-      <SecaoCard titulo="Gestão de Risco" descricao="Limites de perda e exposição de capital por operação e por dia." icon={AlertTriangle}>
-        <ConfigField id="stopDiarioPct" label="Stop Diário (%)"
-          desc="Perda máxima permitida no dia. Ao atingir, encerrar operações."
-          type="number" step="0.001" min="0" max="1"
-          value={Number((form.stopDiarioPct ?? 0.06) * 100).toFixed(2)}
-          onChange={v => {
-            set('stopDiarioPct', String(Number(v) / 100))
-            set('riscoMaxCicloPct', String(Number(v) / 100))
-          }} suffix="%" />
-        <ConfigField id="pctSugeridaEntrada" label="% Sugerida de Entrada (ENTR)"
-          desc="Base para calcular o valor sugerido na entrada inicial do ciclo."
-          type="number" step="0.001" min="0" max="1"
-          value={Number((form.pctSugeridaEntrada ?? 0.02) * 100).toFixed(2)}
-          onChange={v => set('pctSugeridaEntrada', String(Number(v) / 100))} suffix="%" />
-
-        {/* Card unificado: percentuais + valores em dólar com base no stop */}
-        {(() => {
-          const risco  = form.stopDiarioPct ?? 0.06
-          const fMG1   = form.fatorMG1      ?? 2
-          const fMG2   = form.fatorMG2      ?? 2
-          const comMG2 = form.mg2Habilitado ?? false
-          const divisor = comMG2 ? 1 + fMG1 + fMG1 * fMG2 : 1 + fMG1
-
-          const entr = risco / divisor
-          const mg1  = entr * fMG1
-          const mg2  = comMG2 ? mg1 * fMG2 : null
-
-          const fmtPctCalc = (v: number) => `${(v * 100).toFixed(2)}%`
-
-          const temBanca   = banca != null && banca > 0
-          const entrVal    = temBanca ? Math.floor(banca! * entr)       : null
-          const mg1Val     = temBanca ? Math.floor(entrVal! * fMG1)     : null
-          const mg2Val     = temBanca && mg2 != null ? Math.floor(mg1Val! * fMG2) : null
-          const totalCiclo = temBanca ? (entrVal! + mg1Val! + (mg2Val ?? 0)) : null
-          const totalPct   = temBanca && totalCiclo != null ? totalCiclo / banca! : 0
-
-          const itens = [
-            { label: 'ENTR', pct: entr, val: entrVal, color: 'var(--accent-win)' },
-            { label: 'MG1',  pct: mg1,  val: mg1Val,  color: 'var(--accent-warn)' },
-            ...(mg2 != null ? [{ label: 'MG2', pct: mg2, val: mg2Val, color: 'var(--accent-loss)' }] : []),
-          ]
-
-          return (
-            <div style={{
-              margin: '0.75rem 0 1rem',
-              padding: '0.875rem 1rem',
-              borderRadius: '0.5rem',
-              background: 'rgba(16,185,129,0.06)',
-              border: '1px solid rgba(16,185,129,0.2)',
-            }}>
-              {/* Cabeçalho */}
-              <div style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-win)', marginBottom: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Operação com base no Stop Diário</span>
-                {temBanca && <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{formatUSD(banca!)}</span>}
-              </div>
-
-              {/* Grid de entradas */}
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${itens.length + 1}, 1fr)`, gap: '0.5rem' }}>
-                {itens.map(({ label, pct, val, color }) => (
-                  <div key={label} style={{
-                    padding: '0.625rem 0.75rem',
-                    borderRadius: '0.5rem',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border)',
-                    textAlign: 'center',
-                  }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color, fontFamily: 'monospace' }}>{fmtPctCalc(pct)}</div>
-                    {temBanca && val != null && (
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '0.2rem' }}>${val}</div>
-                    )}
-                  </div>
-                ))}
-                {/* Ciclo total */}
-                <div style={{
-                  padding: '0.625rem 0.75rem',
-                  borderRadius: '0.5rem',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
-                  textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ciclo</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{fmtPctCalc(risco)}</div>
-                  {temBanca && totalCiclo != null && (
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '0.2rem' }}>${totalCiclo}</div>
-                  )}
+          {/* Martingale */}
+          <SecaoCard titulo="Martingale" descricao="Estrutura de reforço após perdas. Configure fatores e número máximo de entradas." icon={BarChart2}>
+            <ConfigField id="mg2Habilitado" label="MG2 Habilitado"
+              desc="Permite realizar o segundo Martingale (MG2) no ciclo."
+              type="boolean"
+              value={form.mg2Habilitado ?? false}
+              onChange={v => {
+                set('mg2Habilitado', v)
+                set('maxEntradasPorCiclo', v ? '3' : '2')
+              }} />
+            <ConfigField id="fatorMG1" label="Fator MG1"
+              desc="Multiplicador aplicado sobre o valor de entrada para calcular MG1."
+              type="number" step="0.1" min="1"
+              value={form.fatorMG1 ?? 2}
+              onChange={v => set('fatorMG1', v)} suffix="×" />
+            <ConfigField id="fatorMG2" label="Fator MG2"
+              desc="Multiplicador aplicado sobre MG1 para calcular MG2."
+              type="number" step="0.1" min="1"
+              value={form.fatorMG2 ?? 2}
+              onChange={v => set('fatorMG2', v)} suffix="×" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>Entradas por Ciclo</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Calculado automaticamente: {form.mg2Habilitado ? 'ENTR + MG1 + MG2' : 'ENTR + MG1'}
                 </div>
               </div>
-
-              {/* Rodapé */}
-              {temBanca && (
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Valores arredondados para baixo — corretora aceita apenas números inteiros.</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-loss)' }}>
-                    ${totalCiclo} <span style={{ fontWeight: 400 }}>({(totalPct * 100).toFixed(2)}% da banca)</span>
-                  </span>
-                </div>
-              )}
-
-              {/* Aviso de divergência */}
-              {(form.pctSugeridaEntrada ?? 0.02) - entr > 0.0001 && (() => {
-                const configurada = form.pctSugeridaEntrada ?? 0.02
-                const riscoNecessario = configurada * divisor
-                return (
-                  <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', fontSize: '0.75rem', color: 'var(--accent-warn)' }}>
-                    <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>
-                      ⚠ Entrada configurada ({fmtPctCalc(configurada)}) difere do valor calculado ({fmtPctCalc(entr)}).
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                      Para alinhar, escolha uma das opções:
-                      <br />• Reduza a <strong style={{ color: 'var(--text-primary)' }}>% Sugerida de Entrada</strong> para <strong style={{ color: 'var(--accent-win)' }}>{fmtPctCalc(entr)}</strong>
-                      <br />• Ou aumente o <strong style={{ color: 'var(--text-primary)' }}>Stop Diário</strong> para <strong style={{ color: 'var(--accent-win)' }}>{fmtPctCalc(riscoNecessario)}</strong>
-                    </div>
-                  </div>
-                )
-              })()}
+              <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--accent-blue)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.5rem', padding: '0.25rem 0.75rem' }}>
+                {form.mg2Habilitado ? 3 : 2}
+              </div>
             </div>
-          )
-        })()}
-      </SecaoCard>
-
-      {/* Martingale */}
-      <SecaoCard titulo="Martingale" descricao="Estrutura de reforço após perdas. Configure fatores e número máximo de entradas." icon={BarChart2}>
-        <ConfigField id="mg2Habilitado" label="MG2 Habilitado"
-          desc="Permite realizar o segundo Martingale (MG2) no ciclo."
-          type="boolean"
-          value={form.mg2Habilitado ?? false}
-          onChange={v => {
-            set('mg2Habilitado', v)
-            set('maxEntradasPorCiclo', v ? '3' : '2')
-          }} />
-        <ConfigField id="fatorMG1" label="Fator MG1"
-          desc="Multiplicador aplicado sobre o valor de entrada para calcular MG1."
-          type="number" step="0.1" min="1"
-          value={form.fatorMG1 ?? 2}
-          onChange={v => set('fatorMG1', v)} suffix="×" />
-        <ConfigField id="fatorMG2" label="Fator MG2"
-          desc="Multiplicador aplicado sobre MG1 para calcular MG2."
-          type="number" step="0.1" min="1"
-          value={form.fatorMG2 ?? 2}
-          onChange={v => set('fatorMG2', v)} suffix="×" />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
-          <div>
-            <div style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>Entradas por Ciclo</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              Calculado automaticamente: {form.mg2Habilitado ? 'ENTR + MG1 + MG2' : 'ENTR + MG1'}
-            </div>
-          </div>
-          <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.25rem', color: 'var(--accent-blue)', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.5rem', padding: '0.25rem 0.75rem' }}>
-            {form.mg2Habilitado ? 3 : 2}
-          </div>
+          </SecaoCard>
         </div>
-        </SecaoCard>
+
+        {/* Coluna Direita: Gestão de Risco */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Gestão de Risco */}
+          <SecaoCard titulo="Gestão de Risco" descricao="Limites de perda e exposição de capital por operação e por dia." icon={AlertTriangle}>
+            <ConfigField id="stopDiarioPct" label="Stop Diário (%)"
+              desc="Perda máxima permitida no dia. Ao atingir, encerrar operações."
+              type="number" step="0.001" min="0" max="1"
+              value={Number((form.stopDiarioPct ?? 0.06) * 100).toFixed(2)}
+              onChange={v => {
+                set('stopDiarioPct', String(Number(v) / 100))
+                set('riscoMaxCicloPct', String(Number(v) / 100))
+              }} suffix="%" />
+            <ConfigField id="pctSugeridaEntrada" label="% Sugerida de Entrada (ENTR)"
+              desc="Base para calcular o valor sugerido na entrada inicial do ciclo."
+              type="number" step="0.001" min="0" max="1"
+              value={Number((form.pctSugeridaEntrada ?? 0.02) * 100).toFixed(2)}
+              onChange={v => set('pctSugeridaEntrada', String(Number(v) / 100))} suffix="%" />
+
+            {/* Card unificado: percentuais + valores em dólar com base no stop */}
+            {(() => {
+              const risco  = form.stopDiarioPct ?? 0.06
+              const fMG1   = form.fatorMG1      ?? 2
+              const fMG2   = form.fatorMG2      ?? 2
+              const comMG2 = form.mg2Habilitado ?? false
+              const divisor = comMG2 ? 1 + fMG1 + fMG1 * fMG2 : 1 + fMG1
+
+              const entr = risco / divisor
+              const mg1  = entr * fMG1
+              const mg2  = comMG2 ? mg1 * fMG2 : null
+
+              const fmtPctCalc = (v: number) => `${(v * 100).toFixed(2)}%`
+
+              const temBanca   = banca != null && banca > 0
+              const entrVal    = temBanca ? Math.floor(banca! * entr)       : null
+              const mg1Val     = temBanca ? Math.floor(entrVal! * fMG1)     : null
+              const mg2Val     = temBanca && mg2 != null ? Math.floor(mg1Val! * fMG2) : null
+              const totalCiclo = temBanca ? (entrVal! + mg1Val! + (mg2Val ?? 0)) : null
+              const totalPct   = temBanca && totalCiclo != null ? totalCiclo / banca! : 0
+
+              const itens = [
+                { label: 'ENTR', pct: entr, val: entrVal, color: 'var(--accent-win)' },
+                { label: 'MG1',  pct: mg1,  val: mg1Val,  color: 'var(--accent-warn)' },
+                ...(mg2 != null ? [{ label: 'MG2', pct: mg2, val: mg2Val, color: 'var(--accent-loss)' }] : []),
+              ]
+
+              return (
+                <div style={{
+                  margin: '0.75rem 0 1rem',
+                  padding: '0.875rem 1rem',
+                  borderRadius: '0.5rem',
+                  background: 'rgba(16,185,129,0.06)',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                }}>
+                  {/* Cabeçalho */}
+                  <div style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent-win)', marginBottom: '0.875rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Operação com base no Stop Diário</span>
+                    {temBanca && <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{formatUSD(banca!)}</span>}
+                  </div>
+
+                  {/* Grid de entradas */}
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${itens.length + 1}, 1fr)`, gap: '0.5rem' }}>
+                    {itens.map(({ label, pct, val, color }) => (
+                      <div key={label} style={{
+                        padding: '0.625rem 0.75rem',
+                        borderRadius: '0.5rem',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border)',
+                        textAlign: 'center',
+                      }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 700, color, fontFamily: 'monospace' }}>{fmtPctCalc(pct)}</div>
+                        {temBanca && val != null && (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '0.2rem' }}>${val}</div>
+                        )}
+                      </div>
+                    ))}
+                    {/* Ciclo total */}
+                    <div style={{
+                      padding: '0.625rem 0.75rem',
+                      borderRadius: '0.5rem',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border)',
+                      textAlign: 'center',
+                    }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ciclo</div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{fmtPctCalc(risco)}</div>
+                      {temBanca && totalCiclo != null && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', marginTop: '0.2rem' }}>${totalCiclo}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rodapé */}
+                  {temBanca && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Valores arredondados para baixo — corretora aceita apenas números inteiros.</span>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent-loss)' }}>
+                        ${totalCiclo} <span style={{ fontWeight: 400 }}>({(totalPct * 100).toFixed(2)}% da banca)</span>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Aviso de divergência */}
+                  {(form.pctSugeridaEntrada ?? 0.02) - entr > 0.0001 && (() => {
+                    const configurada = form.pctSugeridaEntrada ?? 0.02
+                    const riscoNecessario = configurada * divisor
+                    return (
+                      <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', fontSize: '0.75rem', color: 'var(--accent-warn)' }}>
+                        <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>
+                          ⚠ Entrada configurada ({fmtPctCalc(configurada)}) difere do valor calculado ({fmtPctCalc(entr)}).
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                          Para alinhar, escolha uma das opções:
+                          <br />• Reduza a <strong style={{ color: 'var(--text-primary)' }}>% Sugerida de Entrada</strong> para <strong style={{ color: 'var(--accent-win)' }}>{fmtPctCalc(entr)}</strong>
+                          <br />• Ou aumente o <strong style={{ color: 'var(--text-primary)' }}>Stop Diário</strong> para <strong style={{ color: 'var(--accent-win)' }}>{fmtPctCalc(riscoNecessario)}</strong>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )
+            })()}
+          </SecaoCard>
+        </div>
       </div>      <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
   )
