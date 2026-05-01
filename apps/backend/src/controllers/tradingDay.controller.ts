@@ -67,3 +67,7 @@ export async function importTrades(req: Request, res: Response) {
   )
   res.json(dia)
 }
+export async function fixReports(req: Request, res: Response) {
+  await tradingDayService.fixReports(req.user!.userId)
+  res.json({ message: 'Relatórios recalculados e corrigidos com sucesso' })
+}

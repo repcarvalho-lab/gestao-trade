@@ -244,7 +244,7 @@ export async function reabrirDia(id: string, userId: string) {
   const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
   const calc = recalcularDia(dia, dia.trades, config, bancaGlobalUSD)
 
-  return prisma.tradingDay.update({
+  const result = await prisma.tradingDay.update({
     where: { id },
     data: {
       isClosed: false,
@@ -264,6 +264,11 @@ export async function reabrirDia(id: string, userId: string) {
       ciclos: { orderBy: { numero: 'asc' } },
     },
   })
+
+  // Recalcula relatórios agora que o dia não está mais fechado
+  await recalcularRelatorios(userId, dia.date)
+
+  return result
 }
 
 export async function excluirDia(id: string, userId: string) {
@@ -274,7 +279,11 @@ export async function excluirDia(id: string, userId: string) {
   if (!dia) throw new AppError('Dia não encontrado', 404)
   if (dia._count.trades > 0)
     throw new AppError('Só é possível excluir um dia sem operações registradas.', 400)
+    
   await prisma.tradingDay.delete({ where: { id } })
+  
+  // Recalcula relatórios caso o dia excluído fizesse parte de alguma estatística
+  await recalcularRelatorios(userId, dia.date)
 }
 
 export async function listarDias(userId: string) {
@@ -437,4 +446,21 @@ export async function importarTradesCSV(tradingDayId: string, userId: string, tr
   }
 
   return getDiaComIndicadores(userId);
+}
+
+export async function fixReports(userId: string) {
+  // Deleta todos os relatórios
+  await prisma.weeklyReport.deleteMany({ where: { userId } })
+  await prisma.monthlyReport.deleteMany({ where: { userId } })
+
+  // Busca dias fechados
+  const dias = await prisma.tradingDay.findMany({
+    where: { userId, isClosed: true },
+    orderBy: { date: 'asc' }
+  })
+
+  // Recalcula tudo sequencialmente
+  for (const dia of dias) {
+    await recalcularRelatorios(userId, dia.date)
+  }
 }

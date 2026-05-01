@@ -39,7 +39,12 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
     },
   })
 
-  if (dias.length === 0) return
+  if (dias.length === 0) {
+    await prisma.weeklyReport.deleteMany({
+      where: { userId, semana, ano },
+    })
+    return
+  }
 
   const diasPositivos = dias.filter((d) => (d.resultadoDia ?? 0) > 0).length
   const diasNegativos = dias.filter((d) => (d.resultadoDia ?? 0) < 0).length
@@ -100,7 +105,12 @@ async function recalcularRelatorioMensal(userId: string, data: Date) {
     orderBy: { date: 'asc' },
   })
 
-  if (dias.length === 0) return
+  if (dias.length === 0) {
+    await prisma.monthlyReport.deleteMany({
+      where: { userId, mes },
+    })
+    return
+  }
 
   const movimentos = await prisma.depositoSaque.findMany({
     where: { userId, mes },
