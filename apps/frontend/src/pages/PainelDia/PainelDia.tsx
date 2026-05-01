@@ -956,6 +956,7 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
       let ativoIdx = -1;
       let valorIdx = -1;
       let statusIdx = -1;
+      let velaIdx = -1;
       
       let headerRowIndex = -1;
       let fallbackHeaders: string[] = [];
@@ -966,12 +967,14 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
          const aIdx = r.findIndex(h => h.includes('ativo') || h.includes('asset') || h.includes('pair') || h.includes('par'));
          const vIdx = r.findIndex(h => h.includes('valor') || h.includes('amount') || h.includes('invest'));
          const sIdx = r.findIndex(h => h.includes('status') || h.includes('result') || h.includes('resultado'));
+         const vlIdx = r.findIndex(h => h === 'vela' || h === 'candle');
          
          if (dIdx >= 0 && aIdx >= 0 && vIdx >= 0 && sIdx >= 0) {
             dateIdx = dIdx;
             ativoIdx = aIdx;
             valorIdx = vIdx;
             statusIdx = sIdx;
+            velaIdx = vlIdx;
             headerRowIndex = i;
             break;
          }
@@ -994,6 +997,7 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
         const ativo = cols[ativoIdx]?.trim() || ''
         const rawValor = cols[valorIdx]?.trim() || ''
         const rawStatus = cols[statusIdx]?.toLowerCase() || ''
+        const rawVela = velaIdx >= 0 ? cols[velaIdx]?.trim() || '' : ''
 
         const valorMatch = rawValor.match(/[\d.,]+/)
         const valorNum = valorMatch ? parseFloat(valorMatch[0].replace(/\./g, '').replace(',', '.')) : 0
@@ -1003,7 +1007,16 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
           const [d, t] = rawDate.split(' ')
           if (!d) continue
           const [day, month, year] = d.split('/')
-          const tParts = (t || '00:00:00').split(':')
+          
+          let timeToUse = t || '00:00:00';
+          if (rawVela) {
+             const velaTimePart = rawVela.split(' ').pop(); // Handle "30/12/1899 08:36" or just "08:36"
+             if (velaTimePart && velaTimePart.includes(':')) {
+                timeToUse = velaTimePart;
+             }
+          }
+
+          const tParts = timeToUse.split(':')
           const hh = Number(tParts[0] || 0)
           const mm = Number(tParts[1] || 0)
           const ss = Number(tParts[2] || 0)
