@@ -34,6 +34,22 @@ function ConfigField({
   value: string | number | boolean; onChange: (v: string | boolean) => void
   step?: string; min?: string; max?: string; suffix?: string
 }) {
+  const [localValue, setLocalValue] = useState(String(value))
+
+  useEffect(() => {
+    // Sync external changes, but ignore if the numerical values match 
+    // to prevent overwriting intermediate states like "1." or "1,0"
+    if (type === 'number') {
+      const numVal = Number(value)
+      const numLocal = Number(localValue.replace(',', '.'))
+      if (numVal !== numLocal && !isNaN(numVal)) {
+        setLocalValue(String(value))
+      }
+    } else {
+      setLocalValue(String(value))
+    }
+  }, [value, type])
+
   if (type === 'boolean') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 0', borderBottom: '1px solid var(--border)' }}>
@@ -66,7 +82,15 @@ function ConfigField({
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <input id={id} className="input" type={type} step={step} min={min} max={max}
-          value={String(value)} onChange={e => onChange(e.target.value)} style={{ maxWidth: 200 }} />
+          value={localValue} 
+          onChange={e => {
+            setLocalValue(e.target.value)
+            // Call onChange only if it's a valid number or empty
+            if (e.target.value === '' || !isNaN(Number(e.target.value.replace(',', '.')))) {
+              onChange(e.target.value.replace(',', '.'))
+            }
+          }} 
+          style={{ maxWidth: 200 }} />
         {suffix && <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{suffix}</span>}
       </div>
     </div>
