@@ -442,7 +442,7 @@ export default function PlanejadoRealizado() {
                   </td>
                   <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
                     {row.parcial ? (
-                      <span title="Capital inicial do mês corrente">{formatCurrencyFull(row.realizado)} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(inicial)</span></span>
+                      <span title="Capital atual do mês corrente">{formatCurrencyFull(row.realizado)}</span>
                     ) : formatCurrencyFull(row.realizado)}
                   </td>
                   <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '0.82rem', color: 'var(--accent-blue)', fontFamily: 'monospace' }}>
