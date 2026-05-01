@@ -916,56 +916,81 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
     setLoading(true)
     setError('')
     try {
-      const text = await file.text()
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l)
-      if (lines.length < 2) throw new Error('O arquivo está vazio ou inválido.')
-      
-      const firstLine = lines[0]
-      const sep = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ','
-      
-      const parseCSVLine = (line: string, separator: string) => {
-        const result: string[] = []
-        let current = ''
-        let inQuotes = false
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i]
-          if (char === '"') inQuotes = !inQuotes
-          else if (char === separator && !inQuotes) { result.push(current.replace(/^"|"$/g, '').trim()); current = '' }
-          else current += char
+      let headers: string[] = [];
+      let rows: string[][] = [];
+
+      if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+        const XLSX = await import('xlsx');
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: 'dd/mm/yyyy hh:mm:ss', defval: '' }) as string[][];
+        
+        const validRows = jsonData.filter(row => row.length > 0 && row.some(cell => String(cell).trim() !== ''));
+        if (validRows.length < 2) throw new Error('O arquivo está vazio ou inválido.');
+        
+        headers = validRows[0].map(h => String(h).toLowerCase());
+        rows = validRows.slice(1).map(row => row.map(cell => String(cell)));
+      } else {
+        const text = await file.text()
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l)
+        if (lines.length < 2) throw new Error('O arquivo está vazio ou inválido.')
+        
+        const firstLine = lines[0]
+        const sep = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ','
+        
+        const parseCSVLine = (line: string, separator: string) => {
+          const result: string[] = []
+          let current = ''
+          let inQuotes = false
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i]
+            if (char === '"') inQuotes = !inQuotes
+            else if (char === separator && !inQuotes) { result.push(current.replace(/^"|"$/g, '').trim()); current = '' }
+            else current += char
+          }
+          result.push(current.replace(/^"|"$/g, '').trim())
+          return result
         }
-        result.push(current.replace(/^"|"$/g, '').trim())
-        return result
+
+        headers = parseCSVLine(lines[0], sep).map(h => h.toLowerCase());
+        rows = lines.slice(1).map(line => parseCSVLine(line, sep));
       }
 
-      const headers = parseCSVLine(lines[0], sep).map(h => h.toLowerCase())
       const dateIdx = headers.findIndex(h => h.includes('data'))
       const ativoIdx = headers.findIndex(h => h.includes('ativo'))
       const valorIdx = headers.findIndex(h => h.includes('valor'))
       const statusIdx = headers.findIndex(h => h.includes('status'))
 
       if (dateIdx < 0 || ativoIdx < 0 || valorIdx < 0 || statusIdx < 0) {
-        throw new Error('Colunas obrigatórias não encontradas (Data, Ativo, Valor, Status).')
+        throw new Error('Colunas obrigatórias não encontradas (Data, Ativo, Valor, Status). Verifique se o arquivo tem os cabeçalhos corretos.')
       }
 
       const parsedTrades: { horario: string; ativo: string; valor: number; status: 'WIN' | 'LOSS' }[] = []
       
-      for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i], sep)
+      for (let i = 0; i < rows.length; i++) {
+        const cols = rows[i];
         if (cols.length <= Math.max(dateIdx, ativoIdx, valorIdx, statusIdx)) continue
         
-        const rawDate = cols[dateIdx]
-        const ativo = cols[ativoIdx]
-        const rawValor = cols[valorIdx]
-        const rawStatus = cols[statusIdx].toLowerCase()
+        const rawDate = cols[dateIdx]?.trim() || ''
+        const ativo = cols[ativoIdx]?.trim() || ''
+        const rawValor = cols[valorIdx]?.trim() || ''
+        const rawStatus = cols[statusIdx]?.toLowerCase() || ''
 
         const valorMatch = rawValor.match(/[\d.,]+/)
         const valorNum = valorMatch ? parseFloat(valorMatch[0].replace(/\./g, '').replace(',', '.')) : 0
         
-        const [d, t] = rawDate.split(' ')
-        if (!d || !t) continue
-        const [day, month, year] = d.split('/')
-        const [hh, mm, ss] = t.split(':')
-        const dateObj = new Date(Number(year), Number(month) - 1, Number(day), Number(hh), Number(mm), Number(ss))
+        let dateObj = new Date();
+        if (rawDate.includes('/')) {
+          const [d, t] = rawDate.split(' ')
+          if (!d) continue
+          const [day, month, year] = d.split('/')
+          const [hh, mm, ss] = (t || '00:00:00').split(':')
+          dateObj = new Date(Number(year), Number(month) - 1, Number(day), Number(hh), Number(mm), Number(ss))
+        } else {
+          dateObj = new Date(rawDate);
+          if (isNaN(dateObj.getTime())) continue;
+        }
         
         const status = rawStatus === 'win' ? 'WIN' : rawStatus.includes('los') ? 'LOSS' : null
         if (!status) continue
@@ -996,7 +1021,7 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Importar Operações (CSV)</h2>
+            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Importar Operações</h2>
             <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Selecione o arquivo exportado da Ebinex
             </p>
@@ -1007,9 +1032,9 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center', padding: '2rem 1rem', border: '2px dashed var(--border)', borderRadius: '0.75rem', background: 'var(--bg-surface)' }}>
           <Upload size={32} style={{ color: 'var(--text-muted)' }} />
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-            Faça upload do arquivo .csv ou .txt exportado
+            Faça upload do arquivo .csv, .txt, ou .xlsx
           </p>
-          <input type="file" accept=".csv,.txt" onChange={handleFileUpload} disabled={loading} style={{ fontSize: '0.85rem' }} />
+          <input type="file" accept=".csv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" onChange={handleFileUpload} disabled={loading} style={{ fontSize: '0.85rem' }} />
         </div>
         
         {loading && <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processando arquivo e calculando ciclos...</div>}
