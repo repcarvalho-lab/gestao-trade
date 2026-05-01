@@ -916,8 +916,7 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
     setLoading(true)
     setError('')
     try {
-      let headers: string[] = [];
-      let rows: string[][] = [];
+      let allRows: string[][] = [];
 
       if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
         const XLSX = await import('xlsx');
@@ -926,17 +925,12 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: 'dd/mm/yyyy hh:mm:ss', defval: '' }) as string[][];
         
-        const validRows = jsonData.filter(row => row.length > 0 && row.some(cell => String(cell).trim() !== ''));
-        if (validRows.length < 2) throw new Error('O arquivo está vazio ou inválido.');
-        
-        headers = validRows[0].map(h => String(h).toLowerCase());
-        rows = validRows.slice(1).map(row => row.map(cell => String(cell)));
+        allRows = jsonData.filter(row => row.length > 0 && row.some(cell => String(cell).trim() !== '')).map(r => r.map(c => String(c)));
       } else {
         const text = await file.text()
         const lines = text.split('\n').map(l => l.trim()).filter(l => l)
-        if (lines.length < 2) throw new Error('O arquivo está vazio ou inválido.')
         
-        const firstLine = lines[0]
+        const firstLine = lines[0] || ''
         const sep = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ','
         
         const parseCSVLine = (line: string, separator: string) => {
@@ -953,18 +947,42 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
           return result
         }
 
-        headers = parseCSVLine(lines[0], sep).map(h => h.toLowerCase());
-        rows = lines.slice(1).map(line => parseCSVLine(line, sep));
+        allRows = lines.map(line => parseCSVLine(line, sep));
       }
 
-      const dateIdx = headers.findIndex(h => h.includes('data'))
-      const ativoIdx = headers.findIndex(h => h.includes('ativo'))
-      const valorIdx = headers.findIndex(h => h.includes('valor'))
-      const statusIdx = headers.findIndex(h => h.includes('status'))
+      if (allRows.length < 2) throw new Error('O arquivo está vazio ou inválido.');
 
-      if (dateIdx < 0 || ativoIdx < 0 || valorIdx < 0 || statusIdx < 0) {
-        throw new Error('Colunas obrigatórias não encontradas (Data, Ativo, Valor, Status). Verifique se o arquivo tem os cabeçalhos corretos.')
+      let dateIdx = -1;
+      let ativoIdx = -1;
+      let valorIdx = -1;
+      let statusIdx = -1;
+      
+      let headerRowIndex = -1;
+      let fallbackHeaders: string[] = [];
+      
+      for (let i = 0; i < Math.min(20, allRows.length); i++) {
+         const r = allRows[i].map(c => c.toLowerCase());
+         const dIdx = r.findIndex(h => h.includes('data') || h.includes('date') || h.includes('time'));
+         const aIdx = r.findIndex(h => h.includes('ativo') || h.includes('asset') || h.includes('pair') || h.includes('par'));
+         const vIdx = r.findIndex(h => h.includes('valor') || h.includes('amount') || h.includes('invest'));
+         const sIdx = r.findIndex(h => h.includes('status') || h.includes('result') || h.includes('resultado'));
+         
+         if (dIdx >= 0 && aIdx >= 0 && vIdx >= 0 && sIdx >= 0) {
+            dateIdx = dIdx;
+            ativoIdx = aIdx;
+            valorIdx = vIdx;
+            statusIdx = sIdx;
+            headerRowIndex = i;
+            break;
+         }
+         if (i === 0) fallbackHeaders = r;
       }
+
+      if (headerRowIndex < 0) {
+        throw new Error(`Cabeçalhos não encontrados. Esperado: [Data, Ativo, Valor, Status]. Lidos: ${fallbackHeaders.slice(0, 5).join(', ') || 'Nenhum'}`);
+      }
+
+      const rows = allRows.slice(headerRowIndex + 1);
 
       const parsedTrades: { horario: string; ativo: string; valor: number; status: 'WIN' | 'LOSS' }[] = []
       
