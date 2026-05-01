@@ -294,49 +294,47 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
 }) {
   return (
     <div>
-      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Parâmetros Financeiros</h3>
-      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Taxas de câmbio usadas nas conversões de depósitos e saques.</p>
-
-      <ConfigField id="cambioCompra" label="Câmbio Compra (Depósitos)"
-        desc="Taxa aplicada na conversão de R$ para US$ em depósitos."
-        type="number" step="0.01" min="0"
-        value={form.cambioCompra ?? 5.2}
-        onChange={v => set('cambioCompra', v)} suffix="R$/US$" />
-
-      <ConfigField id="cambioVenda" label="Câmbio Venda (Saques)"
-        desc="Taxa aplicada na conversão de US$ para R$ em saques."
-        type="number" step="0.01" min="0"
-        value={form.cambioVenda ?? 4.8}
-        onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
-
-      <div style={{ marginTop: '2rem' }}>
-        <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Saldo Inicial do Sistema</h3>
-        <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Configuração do saldo base e a data em que o controle foi iniciado (Banca Global).</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <ConfigField id="saldoInicialCorretora" label="Saldo Inicial (Corretora)"
-            desc="Capital (US$) em corretora."
+        {/* Parâmetros Financeiros */}
+        <SecaoCard titulo="Parâmetros Financeiros" descricao="Taxas de câmbio usadas nas conversões de depósitos e saques." icon={DollarSign}>
+          <ConfigField id="cambioCompra" label="Câmbio Compra (Depósitos)"
+            desc="Taxa aplicada na conversão de R$ para US$ em depósitos."
             type="number" step="0.01" min="0"
-            value={form.saldoInicialCorretora ?? ''}
-            onChange={v => set('saldoInicialCorretora', v ? String(Number(v)) : '')} suffix="US$" />
+            value={form.cambioCompra ?? 5.2}
+            onChange={v => set('cambioCompra', v)} suffix="R$/US$" />
 
-          <ConfigField id="saldoInicialReserva" label="Saldo Inicial (Reserva)"
-            desc="Capital (US$) em caixa."
+          <ConfigField id="cambioVenda" label="Câmbio Venda (Saques)"
+            desc="Taxa aplicada na conversão de US$ para R$ em saques."
             type="number" step="0.01" min="0"
-            value={form.saldoInicialReserva ?? ''}
-            onChange={v => set('saldoInicialReserva', v ? String(Number(v)) : '')} suffix="US$" />
-        </div>
+            value={form.cambioVenda ?? 4.8}
+            onChange={v => set('cambioVenda', v)} suffix="R$/US$" />
+        </SecaoCard>
 
-        <ConfigField id="dataSaldoInicial" label="Mês/Ano do Saldo Inicial"
-          desc="Mês base para que os gráficos puxem esse valor inicial."
-          type="month"
-          value={form.dataSaldoInicial ? new Date(form.dataSaldoInicial as string).toISOString().slice(0, 7) : ''}
-          onChange={v => set('dataSaldoInicial', v ? new Date(`${v}-01T12:00:00Z`).toISOString() : '')} />
+        {/* Saldo Inicial do Sistema */}
+        <SecaoCard titulo="Saldo Inicial do Sistema" descricao="Configuração do saldo base e a data em que o controle foi iniciado (Banca Global)." icon={DollarSign}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <ConfigField id="saldoInicialCorretora" label="Saldo Inicial (Corretora)"
+              desc="Capital (US$) em corretora."
+              type="number" step="0.01" min="0"
+              value={form.saldoInicialCorretora ?? ''}
+              onChange={v => set('saldoInicialCorretora', v ? String(Number(v)) : '')} suffix="US$" />
+
+            <ConfigField id="saldoInicialReserva" label="Saldo Inicial (Reserva)"
+              desc="Capital (US$) em caixa."
+              type="number" step="0.01" min="0"
+              value={form.saldoInicialReserva ?? ''}
+              onChange={v => set('saldoInicialReserva', v ? String(Number(v)) : '')} suffix="US$" />
+          </div>
+
+          <ConfigField id="dataSaldoInicial" label="Mês/Ano do Saldo Inicial"
+            desc="Mês base para que os gráficos puxem esse valor inicial."
+            type="month"
+            value={form.dataSaldoInicial ? new Date(form.dataSaldoInicial as string).toISOString().slice(0, 7) : ''}
+            onChange={v => set('dataSaldoInicial', v ? new Date(`${v}-01T12:00:00Z`).toISOString() : '')} />
+        </SecaoCard>
+
       </div>
-
-      <p style={{ marginTop: '1.25rem', fontSize: '0.78rem', color: 'var(--text-muted)', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
-        💡 Para planejar aportes e saques futuros, acesse a página <strong>Depósitos e Saques</strong>.
-      </p>
 
       <SaveButton onSave={onSave} saving={saving} saved={saved} />
     </div>
