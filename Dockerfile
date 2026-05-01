@@ -2,7 +2,7 @@
 FROM node:22-alpine AS build-front
 WORKDIR /app
 COPY apps/frontend/package*.json ./apps/frontend/
-RUN cd apps/frontend && npm ci
+RUN cd apps/frontend && npm install --no-audit --no-fund --maxsockets=1
 COPY apps/frontend ./apps/frontend
 RUN cd apps/frontend && npm run build
 
@@ -11,7 +11,7 @@ FROM node:22-alpine AS build-back
 RUN apk add --no-cache openssl
 WORKDIR /app
 COPY apps/backend/package*.json ./apps/backend/
-RUN cd apps/backend && npm ci
+RUN cd apps/backend && npm install --no-audit --no-fund --maxsockets=1
 COPY apps/backend/prisma ./apps/backend/prisma
 RUN cd apps/backend && npx prisma generate
 COPY apps/backend/tsconfig.json ./apps/backend/
@@ -26,7 +26,7 @@ ENV NODE_ENV=production
 
 # Instalar dependências de produção do backend
 COPY apps/backend/package*.json ./apps/backend/
-RUN cd apps/backend && npm ci --omit=dev
+RUN cd apps/backend && npm install --omit=dev --no-audit --no-fund --maxsockets=1
 
 # Copiar dist e schemas do Prisma do Backend
 COPY --from=build-back /app/apps/backend/dist ./apps/backend/dist
