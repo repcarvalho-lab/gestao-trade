@@ -424,14 +424,14 @@ export async function importarTradesCSV(tradingDayId: string, userId: string, tr
       data: {
         resultadoDia: calc.resultadoDia,
         rentabilidade: calc.rentabilidade,
-        capitalFinal: calc.capitalFinal,
+        capitalFinal: diaFinal.capitalInicialReal + calc.resultadoDia,
         status: calc.status,
         numeroTrades: calc.numeroTrades,
         win: calc.win,
         loss: calc.loss,
         taxaAcerto: calc.taxaAcerto,
         ciclosRealizados: calc.ciclosRealizados,
-        usouMG2: calc.usouMG2,
+        usouMG2: diaFinal.trades.some((t) => t.tipo === 'MG2'),
       }
     });
   }
