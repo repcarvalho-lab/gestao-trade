@@ -322,3 +322,119 @@ export async function getDiaComIndicadores(userId: string) {
     capitalCorretoraUSD,
   }
 }
+
+export interface ImportTradeDTO {
+  horario: string; // ISO string
+  ativo: string;
+  valor: number;
+  status: 'WIN' | 'LOSS';
+}
+
+export async function importarTradesCSV(tradingDayId: string, userId: string, trades: ImportTradeDTO[]) {
+  const config = await prisma.configuration.findUnique({ where: { userId } });
+  const mg2Habilitado = config?.mg2Habilitado ?? false;
+
+  // Garante ordem cronológica
+  const sortedTrades = [...trades].sort((a, b) => new Date(a.horario).getTime() - new Date(b.horario).getTime());
+
+  for (const t of sortedTrades) {
+    await prisma.$transaction(async (tx) => {
+      let openCycle = await tx.ciclo.findFirst({
+        where: { tradingDayId, status: 'ABERTO' },
+        include: { trades: true }
+      });
+
+      if (!openCycle) {
+        const count = await tx.ciclo.count({ where: { tradingDayId } });
+        openCycle = await tx.ciclo.create({
+          data: {
+            userId,
+            tradingDayId,
+            numero: count + 1,
+            status: 'ABERTO',
+          },
+          include: { trades: true }
+        });
+      }
+
+      const numTrades = openCycle.trades.length;
+      let tradeType: 'ENTR' | 'MG1' | 'MG2' = 'ENTR';
+      
+      if (numTrades === 1) tradeType = 'MG1';
+      else if (numTrades === 2) tradeType = 'MG2';
+      else if (numTrades >= 3) {
+        // Se já tiver 3 trades (ENTR, MG1, MG2), forçar fechamento e criar novo ciclo
+        await tx.ciclo.update({ where: { id: openCycle.id }, data: { status: 'FECHADO_STOP' } });
+        const count = await tx.ciclo.count({ where: { tradingDayId } });
+        openCycle = await tx.ciclo.create({
+          data: { userId, tradingDayId, numero: count + 1, status: 'ABERTO' },
+          include: { trades: true }
+        });
+        tradeType = 'ENTR';
+      }
+
+      // Payout default 85% ou o que o ativo tem
+      const ativoInfo = await tx.ativo.findFirst({ where: { userId, nome: t.ativo } });
+      const currentPayout = ativoInfo?.payout ?? 0.85;
+      const resultado = t.status === 'WIN' ? t.valor * currentPayout : -t.valor;
+
+      await tx.trade.create({
+        data: {
+          userId,
+          tradingDayId,
+          cicloId: openCycle.id,
+          tipo: tradeType,
+          ativo: t.ativo,
+          valor: t.valor,
+          status: t.status,
+          resultado,
+          horario: new Date(t.horario),
+        }
+      });
+
+      let newCycleStatus = 'ABERTO';
+      if (t.status === 'WIN') {
+        newCycleStatus = 'FECHADO_WIN';
+      } else if (t.status === 'LOSS') {
+        if (tradeType === 'MG2' || (!mg2Habilitado && tradeType === 'MG1')) {
+           newCycleStatus = 'FECHADO_STOP';
+        }
+      }
+
+      if (newCycleStatus !== 'ABERTO') {
+        await tx.ciclo.update({
+          where: { id: openCycle.id },
+          data: { status: newCycleStatus as any }
+        });
+      }
+    });
+  }
+
+  // Após salvar tudo, recalcula os indicadores do dia inteiro
+  const diaFinal = await prisma.tradingDay.findUnique({
+    where: { id: tradingDayId },
+    include: { trades: { include: { ciclo: true } } }
+  });
+  
+  if (diaFinal && config) {
+    const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId));
+    const calc = recalcularDia(diaFinal, diaFinal.trades, config, bancaGlobalUSD);
+    await prisma.tradingDay.update({
+      where: { id: tradingDayId },
+      data: {
+        resultadoDia: calc.resultadoDia,
+        rentabilidade: calc.rentabilidade,
+        capitalFinal: calc.capitalFinal,
+        status: calc.status,
+        numeroTrades: calc.numeroTrades,
+        win: calc.win,
+        loss: calc.loss,
+        taxaAcerto: calc.taxaAcerto,
+        ciclosRealizados: calc.ciclosRealizados,
+        usouMG2: calc.usouMG2,
+      }
+    });
+  }
+
+  return getDiaComIndicadores(userId);
+}

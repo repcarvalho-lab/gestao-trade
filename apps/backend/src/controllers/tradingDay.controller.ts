@@ -58,3 +58,12 @@ export async function excluirDia(req: Request, res: Response) {
   await tradingDayService.excluirDia(String(req.params.id), req.user!.userId)
   res.status(204).send()
 }
+
+export async function importTrades(req: Request, res: Response) {
+  const dia = await tradingDayService.importarTradesCSV(
+    String(req.params.id),
+    req.user!.userId,
+    req.body.trades
+  )
+  res.json(dia)
+}

@@ -15,5 +15,6 @@ router.patch('/:id/deposito', catchAsync(tradingDayController.atualizarDeposito)
 router.post('/:id/fechar', catchAsync(tradingDayController.fecharDia))
 router.post('/:id/reabrir', catchAsync(tradingDayController.reabrirDia))
 router.delete('/:id', catchAsync(tradingDayController.excluirDia))
+router.post('/:id/import', catchAsync(tradingDayController.importTrades))
 
 export default router

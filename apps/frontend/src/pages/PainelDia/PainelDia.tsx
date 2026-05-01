@@ -3,7 +3,7 @@ import {
   Plus, X, CheckCircle, XCircle, ChevronRight, Loader2,
   TrendingUp, TrendingDown, Target, ShieldAlert, RefreshCw,
   DollarSign, AlertTriangle, Zap, Wallet, Trash2, Pencil,
-  ArrowDownCircle, ArrowUpCircle, Activity
+  ArrowDownCircle, ArrowUpCircle, Activity, Upload
 } from 'lucide-react'
 import { usePainelStore, type Trade, type TradingDay } from '../../store/painelStore'
 import { useConfigStore } from '../../store/configStore'
@@ -903,6 +903,122 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
   }
 }
 
+// ─── Modal: Importar CSV ──────────────────────────────────────
+function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: () => void, onImported: () => void }) {
+  const { importarTradesCSV } = usePainelStore()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setLoading(true)
+    setError('')
+    try {
+      const text = await file.text()
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l)
+      if (lines.length < 2) throw new Error('O arquivo está vazio ou inválido.')
+      
+      const firstLine = lines[0]
+      const sep = firstLine.includes('\t') ? '\t' : firstLine.includes(';') ? ';' : ','
+      
+      const parseCSVLine = (line: string, separator: string) => {
+        const result = []
+        let current = ''
+        let inQuotes = false
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i]
+          if (char === '"') inQuotes = !inQuotes
+          else if (char === separator && !inQuotes) { result.push(current.replace(/^"|"$/g, '').trim()); current = '' }
+          else current += char
+        }
+        result.push(current.replace(/^"|"$/g, '').trim())
+        return result
+      }
+
+      const headers = parseCSVLine(lines[0], sep).map(h => h.toLowerCase())
+      const dateIdx = headers.findIndex(h => h.includes('data'))
+      const ativoIdx = headers.findIndex(h => h.includes('ativo'))
+      const valorIdx = headers.findIndex(h => h.includes('valor'))
+      const statusIdx = headers.findIndex(h => h.includes('status'))
+
+      if (dateIdx < 0 || ativoIdx < 0 || valorIdx < 0 || statusIdx < 0) {
+        throw new Error('Colunas obrigatórias não encontradas (Data, Ativo, Valor, Status).')
+      }
+
+      const parsedTrades: { horario: string; ativo: string; valor: number; status: 'WIN' | 'LOSS' }[] = []
+      
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i], sep)
+        if (cols.length <= Math.max(dateIdx, ativoIdx, valorIdx, statusIdx)) continue
+        
+        const rawDate = cols[dateIdx]
+        const ativo = cols[ativoIdx]
+        const rawValor = cols[valorIdx]
+        const rawStatus = cols[statusIdx].toLowerCase()
+
+        const valorMatch = rawValor.match(/[\d.,]+/)
+        const valorNum = valorMatch ? parseFloat(valorMatch[0].replace(/\./g, '').replace(',', '.')) : 0
+        
+        const [d, t] = rawDate.split(' ')
+        if (!d || !t) continue
+        const [day, month, year] = d.split('/')
+        const [hh, mm, ss] = t.split(':')
+        const dateObj = new Date(Number(year), Number(month) - 1, Number(day), Number(hh), Number(mm), Number(ss))
+        
+        const status = rawStatus === 'win' ? 'WIN' : rawStatus.includes('los') ? 'LOSS' : null
+        if (!status) continue
+        
+        parsedTrades.push({
+          horario: dateObj.toISOString(),
+          ativo,
+          valor: valorNum,
+          status: status as 'WIN' | 'LOSS',
+        })
+      }
+
+      if (parsedTrades.length === 0) {
+        throw new Error('Nenhuma operação válida encontrada no arquivo.')
+      }
+
+      await importarTradesCSV(parsedTrades)
+      onImported()
+    } catch (err: any) {
+      setError(err.message || 'Erro ao importar arquivo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>Importar Operações (CSV)</h2>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Selecione o arquivo exportado da Ebinex
+            </p>
+          </div>
+          <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={onClose}><X size={16} /></button>
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center', padding: '2rem 1rem', border: '2px dashed var(--border)', borderRadius: '0.75rem', background: 'var(--bg-surface)' }}>
+          <Upload size={32} style={{ color: 'var(--text-muted)' }} />
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+            Faça upload do arquivo .csv ou .txt exportado
+          </p>
+          <input type="file" accept=".csv,.txt" onChange={handleFileUpload} disabled={loading} style={{ fontSize: '0.85rem' }} />
+        </div>
+        
+        {loading && <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processando arquivo e calculando ciclos...</div>}
+        {error && <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--accent-loss)', padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)' }}>{error}</div>}
+      </div>
+    </div>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────
 export default function PainelDia() {
   return <ErrorBoundary><PainelDiaInner /></ErrorBoundary>
@@ -917,6 +1033,7 @@ function PainelDiaInner() {
   const [temDiasAnteriores, setTemDiasAnteriores] = useState(false)
   const [showIniciar, setShowIniciar] = useState(false)
   const [showNova, setShowNova] = useState(false)
+  const [showImportar, setShowImportar] = useState(false)
   const [showFechar, setShowFechar] = useState(false)
   const [showExcluirConfirm, setShowExcluirConfirm] = useState(false)
   const [excluindoDia, setExcluindoDia] = useState(false)
@@ -1128,6 +1245,9 @@ function PainelDiaInner() {
           )}
           <button id="btn-fechar-dia" className="btn btn-outline" style={{ fontSize: '0.85rem' }} onClick={() => setShowFechar(true)}>
             Fechar Dia
+          </button>
+          <button id="btn-importar-csv" className="btn btn-outline" style={{ fontSize: '0.85rem' }} onClick={() => setShowImportar(true)} disabled={novaOperacaoDisabled}>
+            <Upload size={16} /> Importar CSV
           </button>
           <button id="btn-nova-operacao" className="btn btn-success" style={{ fontSize: '0.85rem' }} onClick={() => setShowNova(true)} disabled={novaOperacaoDisabled}>
             <Plus size={16} /> Nova Operação
@@ -1361,6 +1481,9 @@ function PainelDiaInner() {
       {/* ── Modais ── */}
       {showNova && dia && (
         <NovaOperacaoModal dia={dia} motivos={motivos} ativosOp={ativosOp} onClose={() => setShowNova(false)} onCreated={() => setShowNova(false)} />
+      )}
+      {showImportar && dia && (
+        <ImportarCSVModal dia={dia} onClose={() => setShowImportar(false)} onImported={() => setShowImportar(false)} />
       )}
       {showFechar && dia && (
         <FecharDiaModal dia={dia} onClose={() => setShowFechar(false)} onFechado={() => setShowFechar(false)} />

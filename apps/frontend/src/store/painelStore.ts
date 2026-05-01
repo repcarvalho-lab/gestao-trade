@@ -82,6 +82,7 @@ interface PainelState {
   fecharDia: (emocional: string, seguiuSetup: boolean, errosDia?: string[]) => Promise<void>
   excluirDia: () => Promise<void>
   transferirCapital: (de: 'CORRETORA' | 'RESERVA', para: 'CORRETORA' | 'RESERVA', valorUSD: number, cambio: number, data: string, observacao?: string) => Promise<void>
+  importarTradesCSV: (trades: { horario: string, ativo: string, valor: number, status: 'WIN' | 'LOSS' }[]) => Promise<void>
 }
 
 export const usePainelStore = create<PainelState>((set, get) => ({
@@ -156,5 +157,12 @@ export const usePainelStore = create<PainelState>((set, get) => ({
   transferirCapital: async (de, para, valorUSD, cambio, data, observacao) => {
     await api.post('/movimentos/transfer', { de, para, valorUSD, cambio, data, observacao })
     await get().fetchDiaAberto()
+  },
+
+  importarTradesCSV: async (trades) => {
+    const dia = get().diaAberto
+    if (!dia) throw new Error('Nenhum dia aberto')
+    const { data } = await api.post(`/trading-days/${dia.id}/import`, { trades })
+    set({ diaAberto: data })
   },
 }))
