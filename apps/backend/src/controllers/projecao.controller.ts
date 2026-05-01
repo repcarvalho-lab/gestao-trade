@@ -13,32 +13,14 @@ export async function getProjecao(req: Request, res: Response) {
     return
   }
 
-  // Capital base = último dia fechado do mês anterior (= capital real no início do mês atual)
-  const agora = new Date()
-  const inicioMesAtual = new Date(agora.getFullYear(), agora.getMonth(), 1)
-
-  const ultimoDiaMesAnterior = await prisma.tradingDay.findFirst({
-    where: { userId, isClosed: true, date: { lt: inicioMesAtual } },
-    orderBy: { date: 'desc' },
-  })
-
-  // Fallback: se não há histórico anterior, usa o capitalInicialReal do primeiro dia do mês atual
-  const primeiroDiaMesAtual = !ultimoDiaMesAnterior
-    ? await prisma.tradingDay.findFirst({
-        where: { userId, isClosed: true, date: { gte: inicioMesAtual } },
-        orderBy: { date: 'asc' },
-      })
-    : null
-
-  const capitalAtual =
-    ultimoDiaMesAnterior?.capitalFinal ??
-    primeiroDiaMesAtual?.capitalInicialReal ??
-    0
+  const { bancaGlobalUSD } = await getCapitalStatus(userId)
+  const capitalAtual = bancaGlobalUSD
 
 
 
 
   // Mês de início: mês atual
+  const agora = new Date()
   const mesInicio = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
 
   // Aportes planejados do banco (merged com query params opcionais)
