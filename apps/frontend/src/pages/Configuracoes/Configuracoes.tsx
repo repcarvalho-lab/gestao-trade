@@ -470,42 +470,45 @@ function TabMotivos() {
           <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {motivos.map(m => (
             <div key={m.id} style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-              borderRadius: '0.625rem', border: '1px solid var(--border)',
+              display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem',
+              borderRadius: '0.75rem', border: '1px solid var(--border)',
               background: m.ativo ? 'var(--bg-card)' : 'var(--bg-surface)',
               opacity: m.ativo ? 1 : 0.6, transition: 'all 0.15s',
             }}>
-              <div style={{ flex: 1 }}>
-                {editandoId === m.id ? (
-                  <input className="input" value={editandoNome} onChange={e => setEditandoNome(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleEditar(m.id)} autoFocus style={{ maxWidth: 300 }} />
-                ) : (
-                  <span style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{m.nome}</span>
-                )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: '0.5rem' }}>
+                  {editandoId === m.id ? (
+                    <input className="input" value={editandoNome} onChange={e => setEditandoNome(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleEditar(m.id)} autoFocus style={{ width: '100%' }} />
+                  ) : (
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem', display: 'block', wordBreak: 'break-word' }}>{m.nome}</span>
+                  )}
+                </div>
+                {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem', flexShrink: 0 }}>Inativo</span>}
               </div>
-              {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>Inativo</span>}
-              <div style={{ display: 'flex', gap: '0.375rem' }}>
+              
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '0.5rem' }}>
                 {editandoId === m.id ? (
                   <>
                     <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }} onClick={() => handleEditar(m.id)}>
-                      <Check size={12} /> Salvar
+                      <Check size={14} /> Salvar
                     </button>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setEditandoId(null)}>
-                      <X size={12} />
+                      <X size={14} />
                     </button>
                   </>
                 ) : (
                   <>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
                       onClick={() => { setEditandoId(m.id); setEditandoNome(m.nome) }} title="Editar">
-                      <Pencil size={13} />
+                      <Pencil size={15} />
                     </button>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
                       onClick={() => handleToggle(m)} title={m.ativo ? 'Desativar' : 'Reativar'}>
-                      {m.ativo ? <EyeOff size={13} /> : <Eye size={13} />}
+                      {m.ativo ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </>
                 )}
@@ -628,70 +631,81 @@ function TabAtivos() {
           <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {ativos.map((m, idx) => (
             <div key={m.id} style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-              borderRadius: '0.625rem', border: '1px solid var(--border)',
+              display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem',
+              borderRadius: '0.75rem', border: '1px solid var(--border)',
               background: m.ativo ? 'var(--bg-card)' : 'var(--bg-surface)',
               opacity: m.ativo ? 1 : 0.6, transition: 'all 0.15s',
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <button className="btn btn-ghost" style={{ padding: '0.1rem 0.3rem', opacity: idx === 0 ? 0.2 : 1 }}
-                  disabled={idx === 0} onClick={() => handleMover(idx, 'up')} title="Mover para cima">
-                  <ChevronUp size={13} />
-                </button>
-                <button className="btn btn-ghost" style={{ padding: '0.1rem 0.3rem', opacity: idx === ativos.length - 1 ? 0.2 : 1 }}
-                  disabled={idx === ativos.length - 1} onClick={() => handleMover(idx, 'down')} title="Mover para baixo">
-                  <ChevronDown size={13} />
-                </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: '0.5rem' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem', display: 'block', wordBreak: 'break-word' }}>
+                    {m.nome}
+                  </span>
+                </div>
+                {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem', flexShrink: 0 }}>Inativo</span>}
               </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <span style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem', minWidth: 100 }}>
-                  {m.nome}
-                </span>
-                
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
                 {editandoId === m.id ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Payout:</span>
                     <input className="input" type="number" style={{ width: 70, padding: '0.3rem' }} 
                       value={editandoPayout} onChange={e => setEditandoPayout(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && handleEditarPayout(m.id)} autoFocus />
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>%</span>
                   </div>
                 ) : (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--accent-blue)', fontWeight: 600 }}>
-                    {formatPct(m.payout, 0)}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Payout:</span>
+                    <span style={{ fontSize: '0.95rem', color: 'var(--accent-blue)', fontWeight: 700 }}>
+                      {formatPct(m.payout, 0)}
+                    </span>
+                  </div>
                 )}
               </div>
               
-              {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>Inativo</span>}
-              <div style={{ display: 'flex', gap: '0.375rem' }}>
-                {editandoId === m.id ? (
-                  <>
-                    <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }} onClick={() => handleEditarPayout(m.id)}>
-                      <Check size={12} />
-                    </button>
-                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setEditandoId(null)}>
-                      <X size={12} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
-                      onClick={() => { setEditandoId(m.id); setEditandoPayout(((m.payout || 0.85) * 100).toFixed(0)) }} title="Editar Payout">
-                      <Pencil size={13} />
-                    </button>
-                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
-                      onClick={() => handleToggle(m)} title={m.ativo ? 'Desativar' : 'Reativar'}>
-                      {m.ativo ? <EyeOff size={13} /> : <Eye size={13} />}
-                    </button>
-                    <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
-                      onClick={() => handleDeletar(m.id)} title="Remover definitivamente">
-                      <X size={13} />
-                    </button>
-                  </>
-                )}
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px dashed var(--border)' }}>
+                <div style={{ display: 'flex', gap: '2px' }}>
+                  <button className="btn btn-ghost" style={{ padding: '0.3rem 0.4rem', opacity: idx === 0 ? 0.2 : 1 }}
+                    disabled={idx === 0} onClick={() => handleMover(idx, 'up')} title="Mover para cima">
+                    <ChevronUp size={15} />
+                  </button>
+                  <button className="btn btn-ghost" style={{ padding: '0.3rem 0.4rem', opacity: idx === ativos.length - 1 ? 0.2 : 1 }}
+                    disabled={idx === ativos.length - 1} onClick={() => handleMover(idx, 'down')} title="Mover para baixo">
+                    <ChevronDown size={15} />
+                  </button>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {editandoId === m.id ? (
+                    <>
+                      <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }} onClick={() => handleEditarPayout(m.id)}>
+                        <Check size={14} /> Salvar
+                      </button>
+                      <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setEditandoId(null)}>
+                        <X size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
+                        onClick={() => { setEditandoId(m.id); setEditandoPayout(((m.payout || 0.85) * 100).toFixed(0)) }} title="Editar Payout">
+                        <Pencil size={15} />
+                      </button>
+                      <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
+                        onClick={() => handleToggle(m)} title={m.ativo ? 'Desativar' : 'Reativar'}>
+                        {m.ativo ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                      <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
+                        onClick={() => { if (confirm(`Remover definitivamente ${m.nome}?`)) handleDeletar(m.id) }} title="Excluir">
+                        <Trash2 size={15} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -791,50 +805,58 @@ function TabErrosDia() {
           Nenhum erro cadastrado. Adicione o primeiro acima.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {erros.map(e => (
             <div key={e.id} style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem',
-              borderRadius: '0.625rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
+              display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem',
+              borderRadius: '0.75rem', border: '1px solid var(--border)', background: 'var(--bg-card)',
             }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {editandoId === e.id ? (
-                  <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: '0.5rem' }}>
+                  {editandoId === e.id ? (
                     <input className="input" value={editandoNome} onChange={ev => setEditandoNome(ev.target.value)}
-                      onKeyDown={ev => ev.key === 'Enter' && handleEditar(e.id)} autoFocus style={{ maxWidth: 200, flex: 1 }} />
-                    <select className="input" value={editandoGravidade} onChange={ev => setEditandoGravidade(ev.target.value as 'LEVE'|'GRAVE')} style={{ width: 120 }}>
-                      <option value="GRAVE">🔴 Grave</option>
-                      <option value="LEVE">🟡 Leve</option>
-                    </select>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ flex: 1, fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.875rem' }}>{e.nome}</span>
-                    <span className={`badge badge-${e.gravidade === 'GRAVE' ? 'loss' : 'warn'}`} style={{ fontSize: '0.65rem' }}>
-                      {e.gravidade === 'GRAVE' ? 'Grave' : 'Leve'}
+                      onKeyDown={ev => ev.key === 'Enter' && handleEditar(e.id)} autoFocus style={{ width: '100%' }} />
+                  ) : (
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem', display: 'block', wordBreak: 'break-word' }}>
+                      {e.nome}
                     </span>
-                  </>
+                  )}
+                </div>
+                {editandoId !== e.id && (
+                  <span className={`badge badge-${e.gravidade === 'GRAVE' ? 'loss' : 'warn'}`} style={{ fontSize: '0.65rem', flexShrink: 0 }}>
+                    {e.gravidade === 'GRAVE' ? 'Grave' : 'Leve'}
+                  </span>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '0.375rem' }}>
+              
+              {editandoId === e.id && (
+                <div style={{ marginTop: '0.25rem' }}>
+                  <select className="input" value={editandoGravidade} onChange={ev => setEditandoGravidade(ev.target.value as 'LEVE'|'GRAVE')} style={{ width: '100%' }}>
+                    <option value="GRAVE">🔴 Grave</option>
+                    <option value="LEVE">🟡 Leve</option>
+                  </select>
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '0.5rem' }}>
                 {editandoId === e.id ? (
                   <>
                     <button className="btn btn-success" style={{ padding: '0.3rem 0.75rem', fontSize: '0.78rem' }} onClick={() => handleEditar(e.id)}>
-                      <Check size={12} /> Salvar
+                      <Check size={14} /> Salvar
                     </button>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }} onClick={() => setEditandoId(null)}>
-                      <X size={12} />
+                      <X size={14} />
                     </button>
                   </>
                 ) : (
                   <>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem' }}
                       onClick={() => { setEditandoId(e.id); setEditandoNome(e.nome); setEditandoGravidade(e.gravidade ?? 'GRAVE') }} title="Editar">
-                      <Pencil size={13} />
+                      <Pencil size={15} />
                     </button>
                     <button className="btn btn-ghost" style={{ padding: '0.3rem 0.5rem', color: 'var(--accent-loss)' }}
-                      onClick={() => handleDeletar(e.id)} title="Excluir">
-                      <Trash2 size={13} />
+                      onClick={() => { if (confirm(`Remover definitivamente o erro "${e.nome}"?`)) handleDeletar(e.id) }} title="Excluir">
+                      <Trash2 size={15} />
                     </button>
                   </>
                 )}
