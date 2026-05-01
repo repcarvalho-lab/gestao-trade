@@ -45,13 +45,12 @@ export default function ScoreCard({ filtro }: { filtro: Filtro }) {
       borderColor: g.border,
       background: g.bg,
     }}>
-      {/* Gauge circular */}
       <div className="flex justify-center">
         <div className="w-[108px] h-[108px] rounded-full shrink-0 flex items-center justify-center relative shadow-lg transition-all duration-700" style={{
           background: `conic-gradient(${g.color} ${deg}deg, rgba(255,255,255,0.07) ${deg}deg)`,
           boxShadow: `0 0 28px ${g.color}40`,
         }}>
-          <div className="w-20 h-20 rounded-full bg-bg-surface flex flex-col items-center justify-center relative z-10 shadow-inner">
+          <div className="w-20 h-20 rounded-full flex flex-col items-center justify-center relative z-10 shadow-inner" style={{ background: 'var(--bg-surface)' }}>
             <span className="text-[1.65rem] font-black leading-none" style={{ color: g.color }}>{data.score}</span>
             <span className="text-[0.58rem] text-text-muted tracking-wider mt-0.5">/100</span>
           </div>
