@@ -1003,8 +1003,11 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
           const [d, t] = rawDate.split(' ')
           if (!d) continue
           const [day, month, year] = d.split('/')
-          const [hh, mm, ss] = (t || '00:00:00').split(':')
-          dateObj = new Date(Number(year), Number(month) - 1, Number(day), Number(hh), Number(mm), Number(ss))
+          const tParts = (t || '00:00:00').split(':')
+          const hh = Number(tParts[0] || 0)
+          const mm = Number(tParts[1] || 0)
+          const ss = Number(tParts[2] || 0)
+          dateObj = new Date(Number(year), Number(month) - 1, Number(day), hh, mm, ss)
         } else {
           dateObj = new Date(rawDate);
           if (isNaN(dateObj.getTime())) continue;
