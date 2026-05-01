@@ -1,6 +1,7 @@
 # ─── STAGE 1: Build Frontend ──────────────────────────────────────
 FROM node:22-alpine AS build-front
 WORKDIR /app
+ENV NODE_OPTIONS="--max-old-space-size=300"
 COPY apps/frontend/package*.json ./apps/frontend/
 RUN cd apps/frontend && npm install --no-audit --no-fund --maxsockets=1
 COPY apps/frontend ./apps/frontend
@@ -10,6 +11,7 @@ RUN cd apps/frontend && npm run build
 FROM node:22-alpine AS build-back
 RUN apk add --no-cache openssl
 WORKDIR /app
+ENV NODE_OPTIONS="--max-old-space-size=300"
 COPY apps/backend/package*.json ./apps/backend/
 RUN cd apps/backend && npm install --no-audit --no-fund --maxsockets=1
 COPY apps/backend/prisma ./apps/backend/prisma
@@ -25,6 +27,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Instalar dependências de produção do backend
+ENV NODE_OPTIONS="--max-old-space-size=300"
 COPY apps/backend/package*.json ./apps/backend/
 RUN cd apps/backend && npm install --omit=dev --no-audit --no-fund --maxsockets=1
 
