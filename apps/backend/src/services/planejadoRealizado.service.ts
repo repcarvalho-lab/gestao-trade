@@ -116,13 +116,31 @@ export async function getPlanejadoRealizado(userId: string) {
     return sum
   }
 
+  // Dynamically calculate Banca Global to reflect any config changes
+  let currentCorretora = config?.saldoInicialCorretora ?? 0;
+  let currentReservaUSD = config?.saldoInicialReserva ?? 0;
+
   const mesesComMov = meses.map(m => {
-    const reserva = getReservaAt(m.mes)
-    const reservaAnt = getReservaAnteriorAt(m.mes)
+    // Aportes e saques na corretora neste mes
+    const movsCorretoraMes = todosMovimentos.filter(mov => mov.mes === m.mes && mov.conta === 'CORRETORA');
+    const netCorretora = movsCorretoraMes.reduce((s, mov) => s + (mov.tipo === 'DEPOSITO' ? mov.valorUSD : -mov.valorUSD), 0);
+    
+    // Aportes e saques na reserva neste mes
+    const movsReservaMes = todosMovimentos.filter(mov => mov.mes === m.mes && mov.conta === 'RESERVA');
+    const netReservaBRL = movsReservaMes.reduce((s, mov) => s + (mov.tipo === 'DEPOSITO' ? mov.valorBRL : -mov.valorBRL), 0);
+    const netReservaUSD = netReservaBRL / (config?.cambioCompra || 5.0);
+
+    const bancaGlobalInicial = currentCorretora + currentReservaUSD;
+
+    currentCorretora += netCorretora + m.lucroTotal;
+    currentReservaUSD += netReservaUSD;
+
+    const bancaGlobalFinal = currentCorretora + currentReservaUSD;
+
     return {
       ...m,
-      bancaGlobalInicial: m.capitalInicial + reservaAnt,
-      bancaGlobalFinal: m.capitalFinal + reserva, 
+      bancaGlobalInicial,
+      bancaGlobalFinal,
       aporteReal: movMap[m.mes]?.aporte || 0,
       saqueReal: movMap[m.mes]?.saque || 0,
       pesoNet: movMap[m.mes]?.pesoNet || 0,
@@ -131,13 +149,14 @@ export async function getPlanejadoRealizado(userId: string) {
 
   let mesAtualComMov = null
   if (mesAtual) {
-    const reservaAtual = getReservaAt(mesAtual.mes)
-    const reservaAnt = getReservaAnteriorAt(mesAtual.mes)
     const capitalStatus = await getCapitalStatus(userId)
+    
+    const movsCorretoraMesAtual = todosMovimentos.filter(mov => mov.mes === mesAtual.mes && mov.conta === 'CORRETORA');
+    const netCorretoraAtual = movsCorretoraMesAtual.reduce((s, mov) => s + (mov.tipo === 'DEPOSITO' ? mov.valorUSD : -mov.valorUSD), 0);
     
     mesAtualComMov = {
       ...mesAtual,
-      bancaGlobalInicial: mesAtual.capitalInicial + reservaAnt,
+      bancaGlobalInicial: currentCorretora + currentReservaUSD,
       bancaGlobalFinal: capitalStatus.bancaGlobalUSD,
       aporteReal: movMap[mesAtual.mes]?.aporte || 0,
       saqueReal: movMap[mesAtual.mes]?.saque || 0,
