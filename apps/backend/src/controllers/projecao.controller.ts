@@ -1,8 +1,8 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
 import { calcularProjecaoAnual } from '../services/dayCalculator'
-
 import { getCapitalStatus } from '../services/capital.service'
+import { getPlanejadoRealizado } from '../services/planejadoRealizado.service'
 
 export async function getProjecao(req: Request, res: Response) {
   const userId = req.user!.userId
@@ -13,12 +13,17 @@ export async function getProjecao(req: Request, res: Response) {
     return
   }
 
-  const { bancaGlobalUSD } = await getCapitalStatus(userId)
-  const capitalAtual = bancaGlobalUSD
-
-
-
-
+  const planejadoData = await getPlanejadoRealizado(userId)
+  
+  let capitalAtual = 0
+  if (planejadoData.mesAtual) {
+    capitalAtual = planejadoData.mesAtual.bancaGlobalInicial
+  } else if (planejadoData.meses.length > 0) {
+    capitalAtual = planejadoData.meses[planejadoData.meses.length - 1].bancaGlobalInicial
+  } else {
+    const { bancaGlobalUSD } = await getCapitalStatus(userId)
+    capitalAtual = bancaGlobalUSD
+  }
   // Mês de início: mês atual
   const agora = new Date()
   const mesInicio = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
