@@ -337,9 +337,9 @@ export default function ProjecaoAnual() {
                   ))}
                 </div>
               )} />
-              <Area type="monotone" dataKey="capital_CONS" name="Conservador" stroke="var(--accent-blue)" strokeWidth={2} fillOpacity={1} fill="url(#colorCons)" />
-              <Area type="monotone" dataKey="capital_REAL" name="Realista" stroke="var(--accent-win)" strokeWidth={2} fillOpacity={1} fill="url(#colorReal)" />
               <Area type="monotone" dataKey="capital_AGR" name="Agressivo" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorAgr)" />
+              <Area type="monotone" dataKey="capital_REAL" name="Realista" stroke="var(--accent-win)" strokeWidth={2} fillOpacity={1} fill="url(#colorReal)" />
+              <Area type="monotone" dataKey="capital_CONS" name="Conservador" stroke="var(--accent-blue)" strokeWidth={2} fillOpacity={1} fill="url(#colorCons)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
