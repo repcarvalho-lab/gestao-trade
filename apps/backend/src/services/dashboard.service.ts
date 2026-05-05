@@ -56,13 +56,10 @@ export async function getDashboard(userId: string) {
     }
   }
 
-  const capitalInicialHistorico = dias[0]?.capitalInicial ?? 0
-  
-  const movimentos = await prisma.depositoSaque.findMany({ where: { userId } })
-  const totalAportes = movimentos.filter(m => m.tipo === 'DEPOSITO').reduce((s, m) => s + m.valorUSD, 0)
-  const totalSaques  = movimentos.filter(m => m.tipo === 'SAQUE').reduce((s, m) => s + m.valorUSD, 0)
+  const config = await prisma.configuration.findUnique({ where: { userId } })
 
-  const capitalInvestidoTotal = capitalInicialHistorico + totalAportes - totalSaques
+  const capStatus = await getCapitalStatus(userId)
+  const capitalInvestidoTotal = capStatus.bancaGlobalUSD - lucroTotal
   const crescimentoPct = capitalInvestidoTotal > 0 ? lucroTotal / capitalInvestidoTotal : 0
   
   const mediaLucroDia = diaTotais > 0 ? lucroTotal / diaTotais : 0
@@ -70,7 +67,7 @@ export async function getDashboard(userId: string) {
     ? dias.reduce((acc, d) => acc + (d.rentabilidade ?? 0), 0) / diaTotais
     : 0
 
-  const config = await prisma.configuration.findUnique({ where: { userId } })
+
 
   // ── Desempenho do mês atual ──
   const agora = new Date()
@@ -182,8 +179,11 @@ export async function getDashboard(userId: string) {
     }
   }
 
-  const capStatus = await getCapitalStatus(userId)
   const reservaAtualUSD = capStatus.bancaGlobalUSD - capStatus.capitalCorretoraUSD
+
+  const movimentos = await prisma.depositoSaque.findMany({ where: { userId } })
+  const totalAportes = movimentos.filter(m => m.tipo === 'DEPOSITO').reduce((s, m) => s + m.valorUSD, 0)
+  const totalSaques  = movimentos.filter(m => m.tipo === 'SAQUE').reduce((s, m) => s + m.valorUSD, 0)
 
   // Mapear movimentos por data para o gráfico
   const movPorData: Record<string, { aportes: number, saques: number }> = {}
