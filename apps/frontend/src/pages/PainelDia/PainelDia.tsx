@@ -3,7 +3,7 @@ import {
   Plus, X, CheckCircle, XCircle, ChevronRight, Loader2,
   TrendingUp, TrendingDown, Target, ShieldAlert, RefreshCw,
   DollarSign, AlertTriangle, Zap, Wallet, Trash2, Pencil,
-  ArrowDownCircle, ArrowUpCircle, Activity, Upload
+  ArrowDownCircle, ArrowUpCircle, Activity, Upload, MoreHorizontal
 } from 'lucide-react'
 import { usePainelStore, type Trade, type TradingDay } from '../../store/painelStore'
 import { useConfigStore } from '../../store/configStore'
@@ -1095,6 +1095,7 @@ function PainelDiaInner() {
   const [showImportar, setShowImportar] = useState(false)
   const [showFechar, setShowFechar] = useState(false)
   const [showExcluirConfirm, setShowExcluirConfirm] = useState(false)
+  const [showMenuMais, setShowMenuMais] = useState(false)
   const [excluindoDia, setExcluindoDia] = useState(false)
   const [scoreResume, setScoreResume] = useState<{ score: number; grade: string; totalDias: number } | null>(null)
   const [ultimoDia, setUltimoDia] = useState<{ date: string; resultadoDia?: number; win?: number; loss?: number; rentabilidade?: number } | null>(null)
@@ -1285,30 +1286,45 @@ function PainelDiaInner() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <StatusBadge status={dia.status} stopProximo={dia.stopProximo} isClosed={dia.isClosed} />
-          <button className="btn btn-ghost" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }} onClick={fetchDiaAberto} title="Atualizar">
-            <RefreshCw size={14} />
+          
+          <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={fetchDiaAberto} title="Atualizar dados">
+            <RefreshCw size={16} />
           </button>
-          {/* Excluir Dia */}
+
           {showExcluirConfirm ? (
             <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', background: 'rgba(244,63,94,0.1)', padding: '0.35rem 0.625rem', borderRadius: '0.5rem', border: '1px solid rgba(244,63,94,0.3)' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--accent-loss)', fontWeight: 600 }}>Excluir este dia?</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--accent-loss)', fontWeight: 600 }}>Excluir dia?</span>
               <button className="btn btn-danger" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={handleExcluirDia} disabled={excluindoDia}>
                 {excluindoDia ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : 'Sim'}
               </button>
               <button className="btn btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }} onClick={() => setShowExcluirConfirm(false)}>Não</button>
             </div>
           ) : (
-            <button className="btn btn-ghost" style={{ fontSize: '0.8rem', color: 'var(--accent-loss)' }} onClick={() => setShowExcluirConfirm(true)} title="Excluir este dia">
-              <Trash2 size={14} /> Excluir Dia
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button className="btn btn-ghost" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onClick={() => setShowMenuMais(!showMenuMais)} title="Mais opções">
+                <MoreHorizontal size={18} />
+              </button>
+              {showMenuMais && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowMenuMais(false)} />
+                  <div className="card shadow-lg" style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', padding: '0.5rem', minWidth: '160px', zIndex: 50, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.85rem' }} onClick={() => { setShowImportar(true); setShowMenuMais(false); }} disabled={novaOperacaoDisabled}>
+                      <Upload size={14} style={{ marginRight: '0.5rem' }} /> Importar CSV
+                    </button>
+                    <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'flex-start', fontSize: '0.85rem', color: 'var(--accent-loss)' }} onClick={() => { setShowExcluirConfirm(true); setShowMenuMais(false); }} title="Excluir este dia">
+                      <Trash2 size={14} style={{ marginRight: '0.5rem' }} /> Excluir Dia
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
-          <button id="btn-fechar-dia" className="btn btn-outline" style={{ fontSize: '0.85rem' }} onClick={() => setShowFechar(true)}>
+
+          <button id="btn-fechar-dia" className="btn btn-outline" style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }} onClick={() => setShowFechar(true)}>
             Fechar Dia
           </button>
-          <button id="btn-importar-csv" className="btn btn-outline" style={{ fontSize: '0.85rem' }} onClick={() => setShowImportar(true)} disabled={novaOperacaoDisabled}>
-            <Upload size={16} /> Importar CSV
-          </button>
-          <button id="btn-nova-operacao" className="btn btn-success" style={{ fontSize: '0.85rem' }} onClick={() => setShowNova(true)} disabled={novaOperacaoDisabled}>
+          
+          <button id="btn-nova-operacao" className="btn btn-success" style={{ fontSize: '0.85rem', padding: '0.4rem 1rem' }} onClick={() => setShowNova(true)} disabled={novaOperacaoDisabled}>
             <Plus size={16} /> Nova Operação
           </button>
         </div>
