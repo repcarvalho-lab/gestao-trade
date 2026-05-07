@@ -9,6 +9,7 @@ export interface DashboardData {
     diasPositivos: number
     lucroTotal: number
     ultimoCapital: number
+    bancaGlobal: number
     taxaAcertoGeral: number
     maiorGain: number
     maiorLoss: number

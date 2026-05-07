@@ -123,7 +123,7 @@ function TabEstrategia({ form, set, onSave, saving, saved }: {
 }) {
   const { dashboardData, fetchDashboard } = useAnalyticsStore()
   useEffect(() => { if (!dashboardData) fetchDashboard() }, [])
-  const banca = dashboardData?.indicadores?.ultimoCapital ?? null
+  const banca = dashboardData?.indicadores?.bancaGlobal ?? null
 
   return (
     <div>

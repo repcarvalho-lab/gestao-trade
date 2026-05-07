@@ -293,6 +293,7 @@ export async function getDashboard(userId: string) {
       diasPositivos,
       lucroTotal,
       ultimoCapital,
+      bancaGlobal: capStatus.bancaGlobalUSD,
       taxaAcertoGeral,
       maiorGain,
       maiorLoss,
