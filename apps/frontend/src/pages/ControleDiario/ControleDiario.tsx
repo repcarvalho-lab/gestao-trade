@@ -548,7 +548,7 @@ export default function ControleDiario() {
                 <th>Ops</th>
                 <th>Ciclos</th>
                 <th>Status</th>
-                <th>Disciplina</th>
+                <th style={{ textAlign: 'center' }}>Disciplina</th>
                 <th></th>
               </tr>
             </thead>
@@ -603,14 +603,16 @@ export default function ControleDiario() {
                         {statusLabel(d.status, d.isClosed)}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      {d.seguiuSetup === null ? (
-                        <span style={{ color: 'var(--text-muted)' }}>—</span>
-                      ) : d.seguiuSetup ? (
-                        <CheckCircle size={14} style={{ color: 'var(--accent-win)' }} />
-                      ) : (
-                        <XCircle size={14} style={{ color: 'var(--accent-loss)' }} />
-                      )}
+                    <td>
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        {d.seguiuSetup === null ? (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        ) : d.seguiuSetup ? (
+                          <CheckCircle size={14} style={{ color: 'var(--accent-win)' }} />
+                        ) : (
+                          <XCircle size={14} style={{ color: 'var(--accent-loss)' }} />
+                        )}
+                      </div>
                     </td>
                     <td>
                       <button className="btn btn-ghost" style={{ padding: '0.3rem 0.625rem', fontSize: '0.78rem', whiteSpace: 'nowrap' }} onClick={() => d.isClosed ? setDetalheId(d.id) : navigate('/painel')}>
