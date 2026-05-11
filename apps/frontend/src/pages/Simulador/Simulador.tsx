@@ -45,12 +45,12 @@ export default function Simulador() {
     let capitalDiaAtual = bancaAtual
     const taxa = metaDiaria / 100
 
-    // Ponto zero (hoje)
+    // Ponto zero (acumulado do mês)
     dados.push({
       dia: 0,
-      label: 'Hoje',
+      label: 'Acumulado no Mês',
       capitalInicial: bancaInicial,
-      lucro: 0,
+      lucro: bancaAtual - bancaInicial,
       capitalFinal: bancaAtual
     })
 
@@ -309,7 +309,7 @@ export default function Simulador() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ background: 'var(--bg-surface)', position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>
-                    {(['Período', 'Banca Início', 'Lucro Projetado', 'Capital Final']).map((label, i) => (
+                    {(['Período', 'Banca Início', 'Lucro (Período)', 'Capital Final']).map((label, i) => (
                       <th
                         key={label}
                         style={{
