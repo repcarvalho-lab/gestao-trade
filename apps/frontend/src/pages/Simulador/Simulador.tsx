@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Calculator, TrendingUp, DollarSign, Activity, Settings, Info, Target, Percent } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -8,18 +8,35 @@ import {
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
 
+const getSavedVal = (key: string, defaultVal: any) => {
+  const saved = localStorage.getItem(`traderos-simulador-${key}`);
+  if (saved !== null) return JSON.parse(saved);
+  return defaultVal;
+};
+
 export default function Simulador() {
   // Parâmetros da Simulação
-  const [bancaInicial, setBancaInicial] = useState<number>(1000)
-  const [lucroAtualPct, setLucroAtualPct] = useState<number>(10)
-  const [diasRestantes, setDiasRestantes] = useState<number>(10)
-  const [metaDiaria, setMetaDiaria] = useState<number>(2)
-  const [jurosCompostos, setJurosCompostos] = useState<boolean>(true)
+  const [bancaInicial, setBancaInicial] = useState<number>(() => getSavedVal('bancaInicial', 1000))
+  const [lucroAtualPct, setLucroAtualPct] = useState<number>(() => getSavedVal('lucroAtualPct', 10))
+  const [diasRestantes, setDiasRestantes] = useState<number>(() => getSavedVal('diasRestantes', 10))
+  const [metaDiaria, setMetaDiaria] = useState<number>(() => getSavedVal('metaDiaria', 2))
+  const [jurosCompostos, setJurosCompostos] = useState<boolean>(() => getSavedVal('jurosCompostos', true))
 
   // Metas do Mês (%)
-  const [metaConservadora, setMetaConservadora] = useState<number>(20)
-  const [metaRealista, setMetaRealista] = useState<number>(40)
-  const [metaAgressiva, setMetaAgressiva] = useState<number>(60)
+  const [metaConservadora, setMetaConservadora] = useState<number>(() => getSavedVal('metaConservadora', 20))
+  const [metaRealista, setMetaRealista] = useState<number>(() => getSavedVal('metaRealista', 40))
+  const [metaAgressiva, setMetaAgressiva] = useState<number>(() => getSavedVal('metaAgressiva', 60))
+
+  useEffect(() => {
+    localStorage.setItem('traderos-simulador-bancaInicial', JSON.stringify(bancaInicial))
+    localStorage.setItem('traderos-simulador-lucroAtualPct', JSON.stringify(lucroAtualPct))
+    localStorage.setItem('traderos-simulador-diasRestantes', JSON.stringify(diasRestantes))
+    localStorage.setItem('traderos-simulador-metaDiaria', JSON.stringify(metaDiaria))
+    localStorage.setItem('traderos-simulador-jurosCompostos', JSON.stringify(jurosCompostos))
+    localStorage.setItem('traderos-simulador-metaConservadora', JSON.stringify(metaConservadora))
+    localStorage.setItem('traderos-simulador-metaRealista', JSON.stringify(metaRealista))
+    localStorage.setItem('traderos-simulador-metaAgressiva', JSON.stringify(metaAgressiva))
+  }, [bancaInicial, lucroAtualPct, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva])
 
   const bancaAtual = bancaInicial * (1 + lucroAtualPct / 100)
 
