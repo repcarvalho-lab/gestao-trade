@@ -124,8 +124,7 @@ export default function Simulador() {
     <div className="animate-slide-in space-y-8 pb-10">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-100 to-gray-400 flex items-center gap-2">
-          <Calculator size={26} className="text-[#3b82f6]" />
+        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-100 to-gray-400">
           Simulador de Projeção Mensal
         </h1>
         <p className="text-[var(--text-muted)] text-sm mt-1">
