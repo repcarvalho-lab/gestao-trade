@@ -53,6 +53,9 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
   const totalTrades = totalWin + totalLoss
   const taxaAcerto = totalTrades > 0 ? totalWin / totalTrades : 0
   const lucroTotal = dias.reduce((a, d) => a + (d.resultadoDia ?? 0), 0)
+  const capitalInicial = dias[0]?.capitalInicial ?? 0
+  const capitalFinal = dias[dias.length - 1]?.capitalFinal ?? 0
+  const rentabTotal = capitalInicial > 0 ? lucroTotal / capitalInicial : 0
   const resultados = dias.map((d) => d.resultadoDia ?? 0)
   const melhorDia = Math.max(...resultados)
   const piorDia = Math.min(...resultados)
@@ -67,6 +70,9 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
       totalLoss,
       taxaAcerto,
       lucroTotal,
+      capitalInicial,
+      capitalFinal,
+      rentabTotal,
       melhorDia,
       piorDia,
       dataFinal: fimSemana,
@@ -84,6 +90,9 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
       totalLoss,
       taxaAcerto,
       lucroTotal,
+      capitalInicial,
+      capitalFinal,
+      rentabTotal,
       melhorDia,
       piorDia,
     },

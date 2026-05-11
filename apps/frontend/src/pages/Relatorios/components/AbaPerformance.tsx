@@ -99,7 +99,10 @@ export default function AbaPerformance() {
                   <th className={`${thClass} text-center`}>Dias Op.</th>
                   <th className={`${thClass} text-center`}>Positivos</th>
                   <th className={`${thClass} text-center`}>Taxa Acerto</th>
+                  <th className={`${thClass} text-center`}>Capital Inicial</th>
                   <th className={`${thClass} text-center`}>Resultado</th>
+                  <th className={`${thClass} text-center`}>Rentab. Total</th>
+                  <th className={`${thClass} text-center`}>Capital Final</th>
                   <th className={`${thClass} text-center`}>Melhor Dia</th>
                   <th className={`${thClass} text-center`}>Pior Dia</th>
                 </tr>
@@ -118,7 +121,10 @@ export default function AbaPerformance() {
                       {s.diasPositivos} <span className="text-text-muted font-normal">({s.diasOperados > 0 ? ((s.diasPositivos / s.diasOperados) * 100).toFixed(0) : 0}%)</span>
                     </td>
                     <td className={`${tdClass} text-center text-text-primary`}>{fmtPct(s.taxaAcerto)}</td>
+                    <td className={`${tdClass} text-center text-text-primary`}>{fmtUSD(s.capitalInicial)}</td>
                     <td className={`${tdClass} text-center ${resultClass(s.lucroTotal)}`}>{s.lucroTotal >= 0 ? '+' : ''}{fmtUSD(s.lucroTotal)}</td>
+                    <td className={`${tdClass} text-center ${resultClass(s.rentabTotal)}`}>{s.rentabTotal >= 0 ? '+' : ''}{fmtPct(s.rentabTotal)}</td>
+                    <td className={`${tdClass} text-center text-text-primary`}>{fmtUSD(s.capitalFinal)}</td>
                     <td className={`${tdClass} text-center text-accent-win`}>+{fmtUSD(s.melhorDia)}</td>
                     <td className={`${tdClass} text-center text-accent-loss`}>{fmtUSD(s.piorDia)}</td>
                   </tr>

@@ -27,8 +27,13 @@ export interface SemanaReport {
   dataInicial: string; dataFinal: string
   diasOperados: number; diasPositivos: number; diasNegativos: number
   totalWin: number; totalLoss: number
-  taxaAcerto: number; lucroTotal: number
-  melhorDia: number; piorDia: number
+  taxaAcerto: number
+  lucroTotal: number
+  capitalInicial: number
+  capitalFinal: number
+  rentabTotal: number
+  melhorDia: number
+  piorDia: number
 }
 
 export interface MesReport {
