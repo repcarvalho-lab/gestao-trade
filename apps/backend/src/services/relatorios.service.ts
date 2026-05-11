@@ -2,15 +2,15 @@ import { prisma } from '../lib/prisma'
 
 function getWeekNumber(date: Date): { semana: number; ano: number } {
   const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7))
-  const week1 = new Date(d.getFullYear(), 0, 4)
-  const semana = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7)
-  return { semana, ano: d.getFullYear() }
+  d.setUTCHours(0, 0, 0, 0)
+  d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7))
+  const week1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4))
+  const semana = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getUTCDay() + 6) % 7)) / 7)
+  return { semana, ano: d.getUTCFullYear() }
 }
 
 function getMes(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
 export async function recalcularRelatorios(userId: string, data: Date) {
@@ -23,13 +23,13 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
 
   // Busca todos os dias fechados dessa semana ISO
   const inicioSemana = new Date(data)
-  const diaSemana = (data.getDay() + 6) % 7 // seg=0
-  inicioSemana.setDate(data.getDate() - diaSemana)
-  inicioSemana.setHours(0, 0, 0, 0)
+  const diaSemana = (data.getUTCDay() + 6) % 7 // seg=0
+  inicioSemana.setUTCDate(data.getUTCDate() - diaSemana)
+  inicioSemana.setUTCHours(0, 0, 0, 0)
 
   const fimSemana = new Date(inicioSemana)
-  fimSemana.setDate(inicioSemana.getDate() + 6)
-  fimSemana.setHours(23, 59, 59, 999)
+  fimSemana.setUTCDate(inicioSemana.getUTCDate() + 6)
+  fimSemana.setUTCHours(23, 59, 59, 999)
 
   const dias = await prisma.tradingDay.findMany({
     where: {
@@ -53,8 +53,8 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
   const totalTrades = totalWin + totalLoss
   const taxaAcerto = totalTrades > 0 ? totalWin / totalTrades : 0
   const lucroTotal = dias.reduce((a, d) => a + (d.resultadoDia ?? 0), 0)
-  const capitalInicial = dias[0]?.capitalInicial ?? 0
-  const capitalFinal = dias[dias.length - 1]?.capitalFinal ?? 0
+  const capitalInicial = dias[0]?.bancaGlobal || dias[0]?.capitalInicial || 0
+  const capitalFinal = (dias[dias.length - 1]?.bancaGlobal || dias[dias.length - 1]?.capitalInicial || 0) + (dias[dias.length - 1]?.resultadoDia || 0)
   const rentabTotal = capitalInicial > 0 ? lucroTotal / capitalInicial : 0
   const resultados = dias.map((d) => d.resultadoDia ?? 0)
   const melhorDia = Math.max(...resultados)
@@ -102,8 +102,8 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
 async function recalcularRelatorioMensal(userId: string, data: Date) {
   const mes = getMes(data)
 
-  const inicioMes = new Date(data.getFullYear(), data.getMonth(), 1)
-  const fimMes = new Date(data.getFullYear(), data.getMonth() + 1, 0, 23, 59, 59)
+  const inicioMes = new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth(), 1))
+  const fimMes = new Date(Date.UTC(data.getUTCFullYear(), data.getUTCMonth() + 1, 0, 23, 59, 59, 999))
 
   const dias = await prisma.tradingDay.findMany({
     where: {
@@ -127,8 +127,8 @@ async function recalcularRelatorioMensal(userId: string, data: Date) {
 
   const diasPositivos = dias.filter((d) => (d.resultadoDia ?? 0) > 0).length
   const diasNegativos = dias.filter((d) => (d.resultadoDia ?? 0) < 0).length
-  const capitalInicial = dias[0].capitalInicial
-  const capitalFinal = dias[dias.length - 1].capitalFinal ?? 0
+  const capitalInicial = dias[0]?.bancaGlobal || dias[0]?.capitalInicial || 0
+  const capitalFinal = (dias[dias.length - 1]?.bancaGlobal || dias[dias.length - 1]?.capitalInicial || 0) + (dias[dias.length - 1]?.resultadoDia || 0)
   const lucroTotal = dias.reduce((a, d) => a + (d.resultadoDia ?? 0), 0)
   const vlDepositadoSacado = movimentos.reduce((a, m) => {
     return a + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD)
