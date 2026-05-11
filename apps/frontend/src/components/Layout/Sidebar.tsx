@@ -21,9 +21,9 @@ import { formatUSD } from '../../lib/format'
 
 const navItems = [
   { to: '/painel',              icon: Zap,            label: 'Painel do Dia' },
-  { to: '/relatorios',          icon: ClipboardList,  label: 'Relatórios' },
   { to: '/dashboard',           icon: LayoutDashboard,label: 'Dashboard' },
   { to: '/controle-diario',     icon: CalendarDays,   label: 'Controle Diário' },
+  { to: '/relatorios',          icon: ClipboardList,  label: 'Relatórios' },
   { to: '/planejado-realizado', icon: TrendingUp,     label: 'Planejado x Realizado' },
   { to: '/projecao',            icon: LineChart,      label: 'Projeção Anual' },
   { to: '/simulador',           icon: Calculator,     label: 'Simulador' },
