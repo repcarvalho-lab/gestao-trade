@@ -10,6 +10,7 @@ import ProjecaoAnual from '../pages/ProjecaoAnual/ProjecaoAnual'
 import DepositosSaques from '../pages/DepositosSaques/DepositosSaques'
 import PlanejadoRealizado from '../pages/PlanejadoRealizado/PlanejadoRealizado'
 import Relatorios from '../pages/Relatorios/Relatorios'
+import Simulador from '../pages/Simulador/Simulador'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -37,6 +38,7 @@ export default function AppRouter() {
           <Route path="planejado-realizado" element={<PlanejadoRealizado />} />
           <Route path="movimentos" element={<DepositosSaques />} />
           <Route path="relatorios" element={<Relatorios />} />
+          <Route path="simulador" element={<Simulador />} />
           <Route path="configuracoes" element={<Configuracoes />} />
         </Route>
         <Route path="*" element={<Navigate to="/painel" replace />} />

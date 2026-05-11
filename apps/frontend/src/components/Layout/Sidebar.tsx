@@ -12,6 +12,7 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
+  Calculator,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCapitalStore } from '../../store/capitalStore'
@@ -25,6 +26,7 @@ const navItems = [
   { to: '/controle-diario',     icon: CalendarDays,   label: 'Controle Diário' },
   { to: '/planejado-realizado', icon: TrendingUp,     label: 'Planejado x Realizado' },
   { to: '/projecao',            icon: LineChart,      label: 'Projeção Anual' },
+  { to: '/simulador',           icon: Calculator,     label: 'Simulador' },
   { to: '/movimentos',          icon: ArrowLeftRight, label: 'Depósitos e Saques' },
 ]
 
