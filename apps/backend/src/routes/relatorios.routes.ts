@@ -207,14 +207,14 @@ router.get('/meta', catchAsync(async (req: Request, res: Response) => {
 
   for (const dia of dias) {
     const d = new Date(dia.date as Date)
-    const dayOfWeek = d.getUTCDay() || 7
-    const monday = new Date(d)
-    monday.setUTCDate(d.getUTCDate() - dayOfWeek + 1)
-    const key = monday.toISOString().slice(0, 10)
-    const sunday = new Date(monday)
-    sunday.setUTCDate(monday.getUTCDate() + 6)
+    const dayOfWeek = d.getUTCDay() // dom=0
+    const sunday = new Date(d)
+    sunday.setUTCDate(d.getUTCDate() - dayOfWeek)
+    const key = sunday.toISOString().slice(0, 10)
+    const saturday = new Date(sunday)
+    saturday.setUTCDate(sunday.getUTCDate() + 6)
     const fmt = (dt: Date) => `${String(dt.getUTCDate()).padStart(2, '0')}/${String(dt.getUTCMonth() + 1).padStart(2, '0')}`
-    const label = `${fmt(monday)}-${fmt(sunday)}`
+    const label = `${fmt(sunday)}-${fmt(saturday)}`
     if (!semanas[key]) semanas[key] = { label, metaIdeal: 0, metaMaxima: 0, stop: 0, naoAtingida: 0, total: 0 }
     semanas[key].total++
     if (dia.status === 'META_IDEAL')        semanas[key].metaIdeal++

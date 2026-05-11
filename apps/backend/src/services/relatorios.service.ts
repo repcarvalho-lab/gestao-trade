@@ -3,9 +3,12 @@ import { prisma } from '../lib/prisma'
 function getWeekNumber(date: Date): { semana: number; ano: number } {
   const d = new Date(date)
   d.setUTCHours(0, 0, 0, 0)
-  d.setUTCDate(d.getUTCDate() + 3 - ((d.getUTCDay() + 6) % 7))
-  const week1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4))
-  const semana = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getUTCDay() + 6) % 7)) / 7)
+  
+  const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const daysOffset = jan1.getUTCDay() // domingo=0
+  const days = Math.floor((d.getTime() - jan1.getTime()) / 86400000)
+  
+  const semana = Math.floor((days + daysOffset) / 7) + 1
   return { semana, ano: d.getUTCFullYear() }
 }
 
@@ -21,9 +24,9 @@ export async function recalcularRelatorios(userId: string, data: Date) {
 async function recalcularRelatorioSemanal(userId: string, data: Date) {
   const { semana, ano } = getWeekNumber(data)
 
-  // Busca todos os dias fechados dessa semana ISO
+  // Busca todos os dias fechados dessa semana (Dom a Sab)
   const inicioSemana = new Date(data)
-  const diaSemana = (data.getUTCDay() + 6) % 7 // seg=0
+  const diaSemana = data.getUTCDay() // dom=0
   inicioSemana.setUTCDate(data.getUTCDate() - diaSemana)
   inicioSemana.setUTCHours(0, 0, 0, 0)
 
