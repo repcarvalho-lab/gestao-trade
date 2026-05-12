@@ -300,9 +300,9 @@ export default function Simulador() {
                   <Tooltip content={<CustomTooltip />} />
                   
                   {/* Linhas de Metas */}
-                  <ReferenceLine y={targetAgrValor} stroke="#8b5cf6" strokeDasharray="5 5" opacity={0.5} label={{ position: 'insideTopLeft', value: 'AGRESSIVA', fill: '#8b5cf6', fontSize: 10, fontWeight: 700 }} />
-                  <ReferenceLine y={targetRealValor} stroke="#4ade80" strokeDasharray="5 5" opacity={0.5} label={{ position: 'insideTopLeft', value: 'REALISTA', fill: '#4ade80', fontSize: 10, fontWeight: 700 }} />
-                  <ReferenceLine y={targetConsValor} stroke="#3b82f6" strokeDasharray="5 5" opacity={0.5} label={{ position: 'insideTopLeft', value: 'CONSERV.', fill: '#3b82f6', fontSize: 10, fontWeight: 700 }} />
+                  <ReferenceLine y={targetAgrValor} stroke="#8b5cf6" strokeDasharray="5 5" opacity={0.5} label={{ position: 'insideTopLeft', value: `AGRESSIVA (${formatCurrency(targetAgrValor)})`, fill: '#8b5cf6', fontSize: 10, fontWeight: 700 }} />
+                  <ReferenceLine y={targetRealValor} stroke="#4ade80" strokeDasharray="5 5" opacity={0.5} label={{ position: 'insideTopLeft', value: `REALISTA (${formatCurrency(targetRealValor)})`, fill: '#4ade80', fontSize: 10, fontWeight: 700 }} />
+                  <ReferenceLine y={targetConsValor} stroke="#3b82f6" strokeDasharray="5 5" opacity={0.5} label={{ position: 'insideTopLeft', value: `CONSERV. (${formatCurrency(targetConsValor)})`, fill: '#3b82f6', fontSize: 10, fontWeight: 700 }} />
                   
                   <Area type="monotone" dataKey="capitalFinal" stroke="var(--text-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorCapital)" />
                 </AreaChart>
