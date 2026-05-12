@@ -285,7 +285,18 @@ export default function Simulador() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.3} />
                   <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--text-muted)" fontSize={11} tickFormatter={(v) => `$${v}`} tickLine={false} axisLine={false} width={60} domain={['dataMin', 'dataMax']} />
+                  <YAxis 
+                    stroke="var(--text-muted)" 
+                    fontSize={11} 
+                    tickFormatter={(v) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    width={80} 
+                    domain={[
+                      (dataMin: number) => Math.floor(Math.min(dataMin, bancaInicial)), 
+                      (dataMax: number) => Math.ceil(Math.max(dataMax, targetAgrValor))
+                    ]} 
+                  />
                   <Tooltip content={<CustomTooltip />} />
                   
                   {/* Linhas de Metas */}
