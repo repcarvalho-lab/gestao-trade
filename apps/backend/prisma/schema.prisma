@@ -30,33 +30,33 @@ model User {
 }
 
 model Configuration {
-  id                  String   @id @default(uuid())
-  userId              String   @unique
-  metaIdealPct        Float    @default(0.02)
-  metaMaximaPct       Float    @default(0.03)
-  stopDiarioPct       Float    @default(0.06)
-  riscoMaxCicloPct    Float    @default(0.06)
-  pctSugeridaEntrada  Float    @default(0.02)
-  fatorMG1            Float    @default(2)
-  fatorMG2            Float    @default(2)
-  mg2Habilitado       Boolean  @default(false)
-  maxEntradasPorCiclo Int      @default(3)
-  maxCiclosPorDia     Int      @default(3)
-  cambioCompra        Float    @default(5.20)
-  cambioVenda         Float    @default(4.80)
-  retornoConservador  Float    @default(0.20)
-  retornoRealista     Float    @default(0.40)
-  retornoAgressivo    Float    @default(0.60)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  aporteMes           String?
-  aporteValor         Float?
+  id                    String    @id @default(uuid())
+  userId                String    @unique
+  metaIdealPct          Float     @default(0.02)
+  metaMaximaPct         Float     @default(0.03)
+  stopDiarioPct         Float     @default(0.06)
+  riscoMaxCicloPct      Float     @default(0.06)
+  pctSugeridaEntrada    Float     @default(0.02)
+  fatorMG1              Float     @default(2)
+  fatorMG2              Float     @default(2)
+  mg2Habilitado         Boolean   @default(false)
+  maxEntradasPorCiclo   Int       @default(3)
+  maxCiclosPorDia       Int       @default(3)
+  cambioCompra          Float     @default(5.20)
+  cambioVenda           Float     @default(4.80)
+  retornoConservador    Float     @default(0.20)
+  retornoRealista       Float     @default(0.40)
+  retornoAgressivo      Float     @default(0.60)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  aporteMes             String?
+  aporteValor           Float?
   saquesMesInicio       String?
   saque                 Float?
+  dataSaldoInicial      DateTime?
   saldoInicialCorretora Float?
   saldoInicialReserva   Float?
-  dataSaldoInicial      DateTime?
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AportePlanejado {
@@ -64,9 +64,9 @@ model AportePlanejado {
   userId    String
   mes       String
   valor     Float
-  dia       Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  dia       Int      @default(1)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mes])
@@ -77,9 +77,9 @@ model SaquePlanejado {
   userId    String
   mes       String
   valor     Float
-  dia       Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  dia       Int      @default(1)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mes])
@@ -91,7 +91,6 @@ model TradingDay {
   date                  DateTime  @db.Date
   capitalInicial        Float
   deposito              Float     @default(0)
-  depositoReserva       Float     @default(0)
   capitalInicialReal    Float
   capitalFinal          Float?
   resultadoDia          Float?
@@ -111,6 +110,7 @@ model TradingDay {
   updatedAt             DateTime  @updatedAt
   errosDia              String[]  @default([])
   bancaGlobal           Float?    @default(0)
+  depositoReserva       Float     @default(0)
   ciclos                Ciclo[]
   trades                Trade[]
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -207,27 +207,27 @@ model ErroDia {
 }
 
 model WeeklyReport {
-  id            String   @id @default(uuid())
-  userId        String
-  semana        Int
-  ano           Int
-  dataInicial   DateTime
-  dataFinal     DateTime
-  diasOperados  Int      @default(0)
-  diasPositivos Int      @default(0)
-  diasNegativos Int      @default(0)
-  totalWin      Int      @default(0)
-  totalLoss     Int      @default(0)
-  taxaAcerto    Float    @default(0)
-  lucroTotal    Float    @default(0)
-  capitalInicial Float   @default(0)
-  capitalFinal  Float    @default(0)
-  rentabTotal   Float    @default(0)
-  melhorDia     Float    @default(0)
-  piorDia       Float    @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  userId         String
+  semana         Int
+  ano            Int
+  dataInicial    DateTime
+  dataFinal      DateTime
+  diasOperados   Int      @default(0)
+  diasPositivos  Int      @default(0)
+  diasNegativos  Int      @default(0)
+  totalWin       Int      @default(0)
+  totalLoss      Int      @default(0)
+  taxaAcerto     Float    @default(0)
+  lucroTotal     Float    @default(0)
+  melhorDia      Float    @default(0)
+  piorDia        Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  capitalFinal   Float    @default(0)
+  capitalInicial Float    @default(0)
+  rentabTotal    Float    @default(0)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, semana, ano])
 }

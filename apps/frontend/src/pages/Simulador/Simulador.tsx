@@ -21,6 +21,7 @@ export default function Simulador() {
   const [diasRestantes, setDiasRestantes] = useState<number>(() => getSavedVal('diasRestantes', 10))
   const [metaDiaria, setMetaDiaria] = useState<number>(() => getSavedVal('metaDiaria', 2))
   const [jurosCompostos, setJurosCompostos] = useState<boolean>(() => getSavedVal('jurosCompostos', true))
+  const [aportes, setAportes] = useState<number>(() => getSavedVal('aportes', 0))
 
   // Metas do Mês (%)
   const [metaConservadora, setMetaConservadora] = useState<number>(() => getSavedVal('metaConservadora', 20))
@@ -36,9 +37,11 @@ export default function Simulador() {
     localStorage.setItem('traderos-simulador-metaConservadora', JSON.stringify(metaConservadora))
     localStorage.setItem('traderos-simulador-metaRealista', JSON.stringify(metaRealista))
     localStorage.setItem('traderos-simulador-metaAgressiva', JSON.stringify(metaAgressiva))
-  }, [bancaInicial, lucroAtualPct, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva])
+    localStorage.setItem('traderos-simulador-aportes', JSON.stringify(aportes))
+  }, [bancaInicial, lucroAtualPct, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes])
 
-  const bancaAtual = bancaInicial * (1 + lucroAtualPct / 100)
+  const lucroValor = bancaInicial * (lucroAtualPct / 100)
+  const bancaAtual = bancaInicial + lucroValor + aportes
 
   const projecao = useMemo(() => {
     const dados = []
@@ -50,7 +53,7 @@ export default function Simulador() {
       dia: 0,
       label: 'Acumulado no Mês',
       capitalInicial: bancaInicial,
-      lucro: bancaAtual - bancaInicial,
+      lucro: lucroValor,
       capitalFinal: bancaAtual
     })
 
@@ -79,7 +82,9 @@ export default function Simulador() {
   const lucroAcumuladoTotal = capitalFinalTotal - bancaInicial
   const rentabilidadeTotal = bancaInicial > 0 ? (lucroAcumuladoTotal / bancaInicial) * 100 : 0
 
-  // Cálculos de valor absoluto para as metas no gráfico
+  // Cálculos de valor absoluto para as metas no gráfico (considerando a banca inicial)
+  // Nota: As metas são em cima da banca inicial, não dos aportes. Se quiser que os aportes 
+  // afetem as metas, seria (bancaInicial + aportes). Mantendo sobre banca inicial.
   const targetConsValor = bancaInicial * (1 + metaConservadora / 100)
   const targetRealValor = bancaInicial * (1 + metaRealista / 100)
   const targetAgrValor = bancaInicial * (1 + metaAgressiva / 100)
@@ -164,6 +169,18 @@ export default function Simulador() {
                   type="number" step="1"
                   value={lucroAtualPct} onChange={(e) => setLucroAtualPct(Number(e.target.value))}
                   className="w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono focus:border-[#4ade80] focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-2">
+                  <DollarSign size={13} className="text-[#8b5cf6]" /> Aportes / Saques no Mês (US$)
+                </label>
+                <input
+                  type="number" step="10"
+                  value={aportes} onChange={(e) => setAportes(Number(e.target.value))}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono focus:border-[#8b5cf6] focus:outline-none transition-colors"
+                  placeholder="Ex: 50 para depósito, -50 para saque"
                 />
                 <p className="text-[11px] text-[var(--text-muted)] mt-1">
                   Banca Hoje: <strong className="text-[var(--text-primary)]">{formatCurrency(bancaAtual)}</strong>
