@@ -79,14 +79,18 @@ export default function Simulador() {
     return dados
   }, [bancaInicial, bancaAtual, metaDiaria, diasRestantes, jurosCompostos])
 
-  const capitalFinalTotal = projecao.length > 0 ? projecao[projecao.length - 1].capitalFinal : bancaAtual
-  const lucroAcumuladoTotal = capitalFinalTotal - bancaInicial - aportes
-  const rentabilidadeTotal = bancaInicial > 0 ? (lucroAcumuladoTotal / bancaInicial) * 100 : 0
-
   // Cálculo de dias no mês para o prorrateio igual ao Planejamento Anual
   const agora = new Date()
   const diasNoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate()
   const ratioAporte = Math.max(0, diasNoMes - diaAporte + 1) / diasNoMes
+
+  const capitalFinalTotal = projecao.length > 0 ? projecao[projecao.length - 1].capitalFinal : bancaAtual
+  const lucroAcumuladoTotal = capitalFinalTotal - bancaInicial - aportes
+  
+  // A rentabilidade no simulador deve refletir o esforço real. O aporte só entrou depois, 
+  // então usamos uma base ajustada (Banca Inicial + proporção do aporte no tempo)
+  const baseAjustada = bancaInicial + (aportes * ratioAporte)
+  const rentabilidadeTotal = baseAjustada > 0 ? (lucroAcumuladoTotal / baseAjustada) * 100 : 0
 
   // Cálculos de valor absoluto para as metas no gráfico
   // O sistema Planejado Anual cobra juros sobre o aporte proporcionalmente aos dias restantes no mês
