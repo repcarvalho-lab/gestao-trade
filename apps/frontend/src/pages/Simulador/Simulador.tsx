@@ -17,7 +17,7 @@ const getSavedVal = (key: string, defaultVal: any) => {
 export default function Simulador() {
   // Parâmetros da Simulação
   const [bancaInicial, setBancaInicial] = useState<number>(() => getSavedVal('bancaInicial', 1000))
-  const [lucroAtualPct, setLucroAtualPct] = useState<number>(() => getSavedVal('lucroAtualPct', 10))
+  const [lucroAtualValor, setLucroAtualValor] = useState<number>(() => getSavedVal('lucroAtualValor', 100))
   const [diasRestantes, setDiasRestantes] = useState<number>(() => getSavedVal('diasRestantes', 10))
   const [metaDiaria, setMetaDiaria] = useState<number>(() => getSavedVal('metaDiaria', 2))
   const [jurosCompostos, setJurosCompostos] = useState<boolean>(() => getSavedVal('jurosCompostos', true))
@@ -30,7 +30,7 @@ export default function Simulador() {
 
   useEffect(() => {
     localStorage.setItem('traderos-simulador-bancaInicial', JSON.stringify(bancaInicial))
-    localStorage.setItem('traderos-simulador-lucroAtualPct', JSON.stringify(lucroAtualPct))
+    localStorage.setItem('traderos-simulador-lucroAtualValor', JSON.stringify(lucroAtualValor))
     localStorage.setItem('traderos-simulador-diasRestantes', JSON.stringify(diasRestantes))
     localStorage.setItem('traderos-simulador-metaDiaria', JSON.stringify(metaDiaria))
     localStorage.setItem('traderos-simulador-jurosCompostos', JSON.stringify(jurosCompostos))
@@ -38,10 +38,9 @@ export default function Simulador() {
     localStorage.setItem('traderos-simulador-metaRealista', JSON.stringify(metaRealista))
     localStorage.setItem('traderos-simulador-metaAgressiva', JSON.stringify(metaAgressiva))
     localStorage.setItem('traderos-simulador-aportes', JSON.stringify(aportes))
-  }, [bancaInicial, lucroAtualPct, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes])
+  }, [bancaInicial, lucroAtualValor, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes])
 
-  const lucroValor = bancaInicial * (lucroAtualPct / 100)
-  const bancaAtual = bancaInicial + lucroValor + aportes
+  const bancaAtual = bancaInicial + lucroAtualValor + aportes
 
   const projecao = useMemo(() => {
     const dados = []
@@ -53,7 +52,7 @@ export default function Simulador() {
       dia: 0,
       label: 'Acumulado no Mês',
       capitalInicial: bancaInicial,
-      lucro: lucroValor,
+      lucro: lucroAtualValor,
       capitalFinal: bancaAtual
     })
 
@@ -163,11 +162,11 @@ export default function Simulador() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-2">
-                  <Percent size={13} className="text-[#4ade80]" /> Lucro Atual Acumulado (%)
+                  <DollarSign size={13} className="text-[#4ade80]" /> Lucro Atual Acumulado (US$)
                 </label>
                 <input
                   type="number" step="1"
-                  value={lucroAtualPct} onChange={(e) => setLucroAtualPct(Number(e.target.value))}
+                  value={lucroAtualValor} onChange={(e) => setLucroAtualValor(Number(e.target.value))}
                   className="w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono focus:border-[#4ade80] focus:outline-none transition-colors"
                 />
               </div>
