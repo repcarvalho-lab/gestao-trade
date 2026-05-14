@@ -226,6 +226,7 @@ model WeeklyReport {
   updatedAt      DateTime @updatedAt
   capitalFinal   Float    @default(0)
   capitalInicial Float    @default(0)
+  vlDepositadoSacado Float @default(0)
   rentabTotal    Float    @default(0)
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

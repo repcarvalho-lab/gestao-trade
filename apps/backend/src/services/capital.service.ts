@@ -65,3 +65,63 @@ export async function getCapitalStatus(userId: string) {
     bancaGlobalUSD,
   }
 }
+
+/**
+ * Retorna os saldos das contas e a Banca Global para um usuário em uma data específica
+ */
+export async function getCapitalStatusAtDate(userId: string, targetDate: Date) {
+  let capitalCorretoraUSD = 0
+
+  const config = await prisma.configuration.findUnique({ where: { userId } })
+  const baseCorretora = config?.saldoInicialCorretora ?? 0
+
+  const movsCorretora = await prisma.depositoSaque.findMany({
+    where: { userId, conta: 'CORRETORA', data: { lte: targetDate } }
+  })
+  const netCorretora = movsCorretora.reduce(
+    (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD),
+    0
+  )
+
+  const diasFechados = await prisma.tradingDay.findMany({
+    where: { userId, isClosed: true, date: { lte: targetDate } },
+    select: { resultadoDia: true }
+  })
+  const lucroFechados = diasFechados.reduce((sum, d) => sum + (d.resultadoDia ?? 0), 0)
+
+  // Em consultas retroativas, não contabilizamos dias abertos
+
+  capitalCorretoraUSD = baseCorretora + netCorretora + lucroFechados
+
+  const configReserva = await prisma.configuration.findUnique({ where: { userId } })
+  const cambio = configReserva?.cambioCompra || 5.0
+
+  const movsReserva = await prisma.depositoSaque.findMany({
+    where: { 
+      userId, 
+      conta: 'RESERVA',
+      data: {
+        lte: targetDate,
+        ...(configReserva?.dataSaldoInicial ? { gt: configReserva.dataSaldoInicial } : {})
+      }
+    }
+  })
+
+  const baseReservaBRL = (configReserva?.saldoInicialReserva ?? 0) * cambio
+
+  const saldoReservaBRL = baseReservaBRL + movsReserva.reduce(
+    (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL),
+    0
+  )
+
+  const reservaOuroUSD = saldoReservaBRL / cambio
+  const bancaGlobalUSD = capitalCorretoraUSD + reservaOuroUSD
+
+  return {
+    capitalCorretoraUSD,
+    saldoReservaBRL,
+    cambioConsiderado: cambio,
+    bancaGlobalUSD,
+  }
+}
+

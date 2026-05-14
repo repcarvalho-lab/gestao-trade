@@ -30,6 +30,7 @@ export interface SemanaReport {
   taxaAcerto: number
   lucroTotal: number
   capitalInicial: number
+  vlDepositadoSacado: number
   capitalFinal: number
   rentabTotal: number
   melhorDia: number

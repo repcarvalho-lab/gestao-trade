@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma'
+import { getCapitalStatusAtDate } from './capital.service'
 
 function getWeekNumber(date: Date): { semana: number; ano: number } {
   const d = new Date(date)
@@ -57,9 +58,18 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
   const totalTrades = totalWin + totalLoss
   const taxaAcerto = totalTrades > 0 ? totalWin / totalTrades : 0
   const lucroTotal = dias.reduce((a, d) => a + (d.resultadoDia ?? 0), 0)
-  const capitalInicial = dias[0]?.bancaGlobal || dias[0]?.capitalInicial || 0
-  const capitalFinal = (dias[dias.length - 1]?.bancaGlobal || dias[dias.length - 1]?.capitalInicial || 0) + (dias[dias.length - 1]?.resultadoDia || 0)
+  const momentoInicial = new Date(inicioSemana.getTime() - 1)
+  const { bancaGlobalUSD: capitalInicial } = await getCapitalStatusAtDate(userId, momentoInicial)
+  const { bancaGlobalUSD: capitalFinal } = await getCapitalStatusAtDate(userId, fimSemana)
   const rentabTotal = capitalInicial > 0 ? lucroTotal / capitalInicial : 0
+
+  const movimentos = await prisma.depositoSaque.findMany({
+    where: { userId, data: { gte: inicioSemana, lte: fimSemana } },
+  })
+  const vlDepositadoSacado = movimentos.reduce((a, m) => {
+    return a + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD)
+  }, 0)
+
   const resultados = dias.map((d) => d.resultadoDia ?? 0)
   const melhorDia = Math.max(...resultados)
   const piorDia = Math.min(...resultados)
@@ -75,6 +85,7 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
       taxaAcerto,
       lucroTotal,
       capitalInicial,
+      vlDepositadoSacado,
       capitalFinal,
       rentabTotal,
       melhorDia,
@@ -95,6 +106,7 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
       taxaAcerto,
       lucroTotal,
       capitalInicial,
+      vlDepositadoSacado,
       capitalFinal,
       rentabTotal,
       melhorDia,
@@ -131,8 +143,9 @@ async function recalcularRelatorioMensal(userId: string, data: Date) {
 
   const diasPositivos = dias.filter((d) => (d.resultadoDia ?? 0) > 0).length
   const diasNegativos = dias.filter((d) => (d.resultadoDia ?? 0) < 0).length
-  const capitalInicial = dias[0]?.bancaGlobal || dias[0]?.capitalInicial || 0
-  const capitalFinal = (dias[dias.length - 1]?.bancaGlobal || dias[dias.length - 1]?.capitalInicial || 0) + (dias[dias.length - 1]?.resultadoDia || 0)
+  const momentoInicial = new Date(inicioMes.getTime() - 1)
+  const { bancaGlobalUSD: capitalInicial } = await getCapitalStatusAtDate(userId, momentoInicial)
+  const { bancaGlobalUSD: capitalFinal } = await getCapitalStatusAtDate(userId, fimMes)
   const lucroTotal = dias.reduce((a, d) => a + (d.resultadoDia ?? 0), 0)
   const vlDepositadoSacado = movimentos.reduce((a, m) => {
     return a + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD)
