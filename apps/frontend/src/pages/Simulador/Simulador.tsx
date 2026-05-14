@@ -78,15 +78,14 @@ export default function Simulador() {
   }, [bancaInicial, bancaAtual, metaDiaria, diasRestantes, jurosCompostos])
 
   const capitalFinalTotal = projecao.length > 0 ? projecao[projecao.length - 1].capitalFinal : bancaAtual
-  const lucroAcumuladoTotal = capitalFinalTotal - bancaInicial
+  const lucroAcumuladoTotal = capitalFinalTotal - bancaInicial - aportes
   const rentabilidadeTotal = bancaInicial > 0 ? (lucroAcumuladoTotal / bancaInicial) * 100 : 0
 
-  // Cálculos de valor absoluto para as metas no gráfico (considerando a banca inicial)
-  // Nota: As metas são em cima da banca inicial, não dos aportes. Se quiser que os aportes 
-  // afetem as metas, seria (bancaInicial + aportes). Mantendo sobre banca inicial.
-  const targetConsValor = bancaInicial * (1 + metaConservadora / 100)
-  const targetRealValor = bancaInicial * (1 + metaRealista / 100)
-  const targetAgrValor = bancaInicial * (1 + metaAgressiva / 100)
+  // Cálculos de valor absoluto para as metas no gráfico
+  // Os aportes somam no valor absoluto da meta para "subir a régua", mantendo o alvo de lucro intacto.
+  const targetConsValor = bancaInicial * (1 + metaConservadora / 100) + aportes
+  const targetRealValor = bancaInicial * (1 + metaRealista / 100) + aportes
+  const targetAgrValor = bancaInicial * (1 + metaAgressiva / 100) + aportes
 
   const getStatusMeta = () => {
     if (rentabilidadeTotal >= metaAgressiva) return { label: 'Atinge Meta Agressiva 🚀', color: '#8b5cf6' }
