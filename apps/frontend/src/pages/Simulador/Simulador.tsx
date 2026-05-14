@@ -22,6 +22,7 @@ export default function Simulador() {
   const [metaDiaria, setMetaDiaria] = useState<number>(() => getSavedVal('metaDiaria', 2))
   const [jurosCompostos, setJurosCompostos] = useState<boolean>(() => getSavedVal('jurosCompostos', true))
   const [aportes, setAportes] = useState<number>(() => getSavedVal('aportes', 0))
+  const [diaAporte, setDiaAporte] = useState<number>(() => getSavedVal('diaAporte', 1))
 
   // Metas do Mês (%)
   const [metaConservadora, setMetaConservadora] = useState<number>(() => getSavedVal('metaConservadora', 20))
@@ -38,7 +39,8 @@ export default function Simulador() {
     localStorage.setItem('traderos-simulador-metaRealista', JSON.stringify(metaRealista))
     localStorage.setItem('traderos-simulador-metaAgressiva', JSON.stringify(metaAgressiva))
     localStorage.setItem('traderos-simulador-aportes', JSON.stringify(aportes))
-  }, [bancaInicial, lucroAtualValor, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes])
+    localStorage.setItem('traderos-simulador-diaAporte', JSON.stringify(diaAporte))
+  }, [bancaInicial, lucroAtualValor, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes, diaAporte])
 
   const bancaAtual = bancaInicial + lucroAtualValor + aportes
 
@@ -81,11 +83,20 @@ export default function Simulador() {
   const lucroAcumuladoTotal = capitalFinalTotal - bancaInicial - aportes
   const rentabilidadeTotal = bancaInicial > 0 ? (lucroAcumuladoTotal / bancaInicial) * 100 : 0
 
+  // Cálculo de dias no mês para o prorrateio igual ao Planejamento Anual
+  const agora = new Date()
+  const diasNoMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate()
+  const ratioAporte = Math.max(0, diasNoMes - diaAporte + 1) / diasNoMes
+
   // Cálculos de valor absoluto para as metas no gráfico
-  // Os aportes somam no valor absoluto da meta para "subir a régua", mantendo o alvo de lucro intacto.
-  const targetConsValor = bancaInicial * (1 + metaConservadora / 100) + aportes
-  const targetRealValor = bancaInicial * (1 + metaRealista / 100) + aportes
-  const targetAgrValor = bancaInicial * (1 + metaAgressiva / 100) + aportes
+  // O sistema Planejado Anual cobra juros sobre o aporte proporcionalmente aos dias restantes no mês
+  const jurosAporteCons = aportes * (metaConservadora / 100) * ratioAporte
+  const jurosAporteReal = aportes * (metaRealista / 100) * ratioAporte
+  const jurosAporteAgr = aportes * (metaAgressiva / 100) * ratioAporte
+
+  const targetConsValor = bancaInicial * (1 + metaConservadora / 100) + aportes + jurosAporteCons
+  const targetRealValor = bancaInicial * (1 + metaRealista / 100) + aportes + jurosAporteReal
+  const targetAgrValor = bancaInicial * (1 + metaAgressiva / 100) + aportes + jurosAporteAgr
 
   const getStatusMeta = () => {
     if (rentabilidadeTotal >= metaAgressiva) return { label: 'Atinge Meta Agressiva 🚀', color: '#8b5cf6' }
@@ -174,12 +185,22 @@ export default function Simulador() {
                 <label className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-2">
                   <DollarSign size={13} className="text-[#8b5cf6]" /> Aportes / Saques no Mês (US$)
                 </label>
-                <input
-                  type="number" step="10"
-                  value={aportes} onChange={(e) => setAportes(Number(e.target.value))}
-                  className="w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono focus:border-[#8b5cf6] focus:outline-none transition-colors"
-                  placeholder="Ex: 50 para depósito, -50 para saque"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="number" step="10"
+                    value={aportes} onChange={(e) => setAportes(Number(e.target.value))}
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] font-mono focus:border-[#8b5cf6] focus:outline-none transition-colors"
+                    placeholder="Valor (Ex: 50 ou -50)"
+                  />
+                  <div className="flex items-center gap-1 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg px-2 focus-within:border-[#8b5cf6] transition-colors">
+                    <span className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Dia</span>
+                    <input
+                      type="number" min="1" max="31"
+                      value={diaAporte} onChange={(e) => setDiaAporte(Number(e.target.value))}
+                      className="w-10 bg-transparent border-none p-0 text-sm text-center text-[var(--text-primary)] font-mono focus:outline-none focus:ring-0"
+                    />
+                  </div>
+                </div>
                 <p className="text-[11px] text-[var(--text-muted)] mt-1">
                   Banca Hoje: <strong className="text-[var(--text-primary)]">{formatCurrency(bancaAtual)}</strong>
                 </p>
