@@ -146,16 +146,18 @@ export async function atualizarDeposito(tradingDayId: string, userId: string, de
   const config = await prisma.configuration.findUnique({ where: { userId } })
   if (!config) throw new AppError('Configurações não encontradas', 500)
 
-  // Recalcula valores com novo capital
-  const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
+  // O alvo do dia não pode ser móvel. Usamos a banca global do início do dia + o novo depósito
+  const baseParaCalculo = (dia.bancaGlobal || dia.capitalInicialReal) + deposito
+
   const trades = await prisma.trade.findMany({ where: { tradingDayId } })
-  const calc = recalcularDia({ ...dia, capitalInicialReal, deposito }, trades, config, bancaGlobalUSD)
+  const calc = recalcularDia({ ...dia, capitalInicialReal, deposito }, trades, config, baseParaCalculo)
 
   return prisma.tradingDay.update({
     where: { id: tradingDayId },
     data: {
       deposito,
       capitalInicialReal,
+      bancaGlobal: baseParaCalculo,
       resultadoDia: calc.resultadoDia,
       rentabilidade: calc.rentabilidade,
       status: calc.status,
@@ -241,8 +243,9 @@ export async function reabrirDia(id: string, userId: string) {
   if (!config) throw new AppError('Configurações não encontradas', 500)
 
   // Recalcula o status real a partir dos trades (remove META_NAO_ATINGIDA)
-  const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
-  const calc = recalcularDia(dia, dia.trades, config, bancaGlobalUSD)
+  // Usa a base estática do dia para não criar alvo móvel
+  const baseCalculo = dia.bancaGlobal || dia.capitalInicialReal
+  const calc = recalcularDia(dia, dia.trades, config, baseCalculo)
 
   const result = await prisma.tradingDay.update({
     where: { id },
@@ -319,8 +322,11 @@ export async function getDiaComIndicadores(userId: string) {
   if (!config) return dia
 
   const { bancaGlobalUSD, saldoReservaBRL, capitalCorretoraUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId))
-  const calc = recalcularDia(dia, dia.trades, config, bancaGlobalUSD)
-  const sugeridos = calcularValoresSugeridos(bancaGlobalUSD, config)
+  
+  // A base de cálculo do dia não deve incluir o lucro do próprio dia para evitar que a meta se afaste do usuário.
+  const baseCalculo = dia.bancaGlobal || dia.capitalInicialReal
+  const calc = recalcularDia(dia, dia.trades, config, baseCalculo)
+  const sugeridos = calcularValoresSugeridos(baseCalculo, config)
 
   return { 
     ...dia, 
@@ -426,8 +432,8 @@ export async function importarTradesCSV(tradingDayId: string, userId: string, tr
   });
   
   if (diaFinal && config) {
-    const { bancaGlobalUSD } = await import('./capital.service').then(m => m.getCapitalStatus(userId));
-    const calc = recalcularDia(diaFinal, diaFinal.trades, config, bancaGlobalUSD);
+    const baseCalculo = diaFinal.bancaGlobal || diaFinal.capitalInicialReal;
+    const calc = recalcularDia(diaFinal, diaFinal.trades, config, baseCalculo);
     await prisma.tradingDay.update({
       where: { id: tradingDayId },
       data: {
