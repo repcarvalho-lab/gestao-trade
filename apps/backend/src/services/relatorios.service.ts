@@ -40,6 +40,7 @@ async function recalcularRelatorioSemanal(userId: string, data: Date) {
       isClosed: true,
       date: { gte: inicioSemana, lte: fimSemana },
     },
+    orderBy: { date: 'asc' },
   })
 
   if (dias.length === 0) {
