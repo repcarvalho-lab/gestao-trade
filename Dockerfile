@@ -29,7 +29,7 @@ ENV NODE_ENV=production
 # Instalar dependências de produção do backend
 ENV NODE_OPTIONS="--max-old-space-size=300"
 COPY apps/backend/package*.json ./apps/backend/
-RUN cd apps/backend && npm install --omit=dev --no-audit --no-fund --maxsockets=1
+RUN cd apps/backend && npm install --no-audit --no-fund --maxsockets=1
 
 # Copiar dist e schemas do Prisma do Backend
 COPY --from=build-back /app/apps/backend/dist ./apps/backend/dist
