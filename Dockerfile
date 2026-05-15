@@ -45,8 +45,7 @@ COPY apps/backend/start.sh ./apps/backend/start.sh
 RUN chmod +x ./apps/backend/start.sh
 
 
-ENV PORT=4001
-EXPOSE 4001
+
 
 # Executa migrações do banco e starta servidor Node que entrega os dois
 CMD ["/app/apps/backend/start.sh"]
