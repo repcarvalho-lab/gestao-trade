@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt'
 import { AppError } from '../middleware/errorHandler'
+import { sendWelcomeEmail } from './email.service'
 
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
@@ -39,6 +40,9 @@ export async function register(nome: string, email: string, passwordPlain: strin
   const payload = { userId: user.id, role: user.role, email: user.email }
   const accessToken = generateAccessToken(payload)
   const refreshToken = generateRefreshToken(payload)
+
+  // Envia email de forma assíncrona (sem travar o retorno)
+  sendWelcomeEmail(user.email, user.nome).catch(err => console.error(err))
 
   return {
     accessToken,
