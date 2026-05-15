@@ -28,6 +28,22 @@ export async function getProjecao(req: Request, res: Response) {
   const agora = new Date()
   const mesInicio = `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}`
 
+  // A pedido da usuária: "pega o saldo inicial do mes e verifica se teve algum deposito ou saque naquele dia (dia 1). se tiver alguma movimentacao, inclui essa movimentacao no saldo inicial (dessa tela)"
+  const movimentosMes = await prisma.depositoSaque.findMany({
+    where: { userId, mes: mesInicio }
+  })
+
+  let ajusteDiaUm = 0
+  for (const mov of movimentosMes) {
+    const dataMov = new Date(mov.data)
+    // Considera apenas o dia 1 do mês
+    if (dataMov.getUTCDate() === 1) {
+      ajusteDiaUm += mov.tipo === 'DEPOSITO' ? mov.valorUSD : -mov.valorUSD
+    }
+  }
+  
+  capitalAtual += ajusteDiaUm
+
   // Aportes planejados do banco (merged com query params opcionais)
   const aportesDb = await prisma.aportePlanejado.findMany({ where: { userId } })
   const aportesPorMes: Record<string, { valor: number; dia: number }> = {}
