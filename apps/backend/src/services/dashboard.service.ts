@@ -150,7 +150,7 @@ export async function getDashboard(userId: string) {
       const effect = isDeposit ? mov.valorUSD : -mov.valorUSD
       
       const diaMov = mov.data.getUTCDate()
-      const diasRestantes = Math.max(0, diasNoMes - diaMov)
+      const diasRestantes = Math.max(0, diasNoMes - diaMov + 1)
       const ratio = diasRestantes / diasNoMes
       
       pesoNet += effect * ratio
