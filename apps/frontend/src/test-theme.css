@@ -1,0 +1,22 @@
+.light {
+  --bg-base:    #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card:    #ffffff;
+  --bg-hover:   #f1f5f9;
+  --border:     #e2e8f0;
+  --border-light: #cbd5e1;
+
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #64748b;
+
+  --accent-win:  #10b981;
+  --accent-loss: #e11d48;
+  --accent-warn: #d97706;
+  --accent-blue: #2563eb;
+  --accent-orange: #ea580c;
+
+  --gradient-win:  linear-gradient(135deg, #d1fae5, #a7f3d0);
+  --gradient-loss: linear-gradient(135deg, #ffe4e6, #fecdd3);
+  --gradient-warn: linear-gradient(135deg, #fef3c7, #fde68a);
+}

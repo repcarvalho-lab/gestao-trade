@@ -9,6 +9,14 @@ export async function login(req: Request, res: Response) {
     .json({ accessToken: result.accessToken, user: result.user })
 }
 
+export async function register(req: Request, res: Response) {
+  const { nome, email, password } = req.body
+  const result = await authService.register(nome, email, password)
+  res
+    .cookie('refreshToken', result.refreshToken, result.cookieOptions)
+    .json({ accessToken: result.accessToken, user: result.user })
+}
+
 export async function refresh(req: Request, res: Response) {
   const token = req.cookies?.refreshToken
   if (!token) {
@@ -28,4 +36,10 @@ export async function logout(_req: Request, res: Response) {
 
 export function me(req: Request, res: Response) {
   res.json({ user: req.user })
+}
+
+export async function updateProfile(req: Request, res: Response) {
+  const { nome, email } = req.body
+  const updatedUser = await authService.updateProfile((req.user as any).userId, { nome, email })
+  res.json({ user: updatedUser })
 }

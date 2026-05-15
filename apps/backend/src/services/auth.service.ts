@@ -11,6 +11,43 @@ const REFRESH_COOKIE_OPTIONS = {
   path: '/api/auth/refresh',
 }
 
+export async function register(nome: string, email: string, passwordPlain: string) {
+  const existingUser = await prisma.user.findUnique({ where: { email } })
+  if (existingUser) throw new AppError('Este e-mail já está em uso.', 409)
+
+  const passwordHash = await bcrypt.hash(passwordPlain, 10)
+  
+  const user = await prisma.user.create({
+    data: {
+      nome,
+      email,
+      passwordHash,
+      configuration: {
+        create: {
+          metaIdealPct: 0.05,
+          metaMaximaPct: 0.10,
+          stopDiarioPct: 0.02,
+          riscoMaxCicloPct: 0.02,
+          pctSugeridaEntrada: 0.02,
+          maxEntradasPorCiclo: 3,
+          maxCiclosPorDia: 2,
+        }
+      }
+    }
+  })
+
+  const payload = { userId: user.id, role: user.role, email: user.email }
+  const accessToken = generateAccessToken(payload)
+  const refreshToken = generateRefreshToken(payload)
+
+  return {
+    accessToken,
+    refreshToken,
+    cookieOptions: REFRESH_COOKIE_OPTIONS,
+    user: { id: user.id, email: user.email, role: user.role, nome: user.nome },
+  }
+}
+
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email } })
   if (!user) throw new AppError('Credenciais inválidas', 401)
@@ -26,8 +63,16 @@ export async function login(email: string, password: string) {
     accessToken,
     refreshToken,
     cookieOptions: REFRESH_COOKIE_OPTIONS,
-    user: { id: user.id, email: user.email, role: user.role },
+    user: { id: user.id, email: user.email, role: user.role, nome: user.nome },
   }
+}
+
+export async function updateProfile(userId: string, data: { nome?: string; email?: string }) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { nome: data.nome, email: data.email }
+  })
+  return { id: user.id, email: user.email, role: user.role, nome: user.nome }
 }
 
 export async function refreshAccessToken(refreshToken: string) {

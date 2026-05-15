@@ -5,7 +5,7 @@ import { authenticate, requireAdmin } from '../middleware/auth'
 
 const router = Router()
 
-router.use(authenticate, requireAdmin)
+router.use(authenticate)
 router.get('/', configController.getConfig)
 router.patch('/', configController.updateConfig)
 

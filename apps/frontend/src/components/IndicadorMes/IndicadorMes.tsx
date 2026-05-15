@@ -140,22 +140,20 @@ export default function IndicadorMes({ nivel, rentabilidade, capitalInicio, capi
         </div>
       </div>
 
-      {nivel !== 'SEM_DADOS' && (
-        <div style={{ display: 'flex', gap: '16px', paddingTop: '12px', borderTop: `1px solid ${cfg.border}` }}>
-          <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Capital no início</p>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(capitalInicio)}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Capital atual</p>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(capitalAtual)}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Lucro do mês</p>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: cfg.cor }}>{fmt(lucroMes)}</p>
-          </div>
+      <div style={{ display: 'flex', gap: '16px', paddingTop: '12px', borderTop: `1px solid ${cfg.border}` }}>
+        <div>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Capital no início</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(capitalInicio)}</p>
         </div>
-      )}
+        <div>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Capital atual</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{fmt(capitalAtual)}</p>
+        </div>
+        <div>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: 2 }}>Lucro do mês</p>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: cfg.cor }}>{fmt(lucroMes)}</p>
+        </div>
+      </div>
 
       <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{cfg.descricao}</p>
     </div>

@@ -10,8 +10,20 @@ export async function getCapitalStatus(userId: string) {
   const config = await prisma.configuration.findUnique({ where: { userId } })
   const baseCorretora = config?.saldoInicialCorretora ?? 0
 
+  let dataCorte: Date | undefined = undefined;
+  if (config?.dataSaldoInicial) {
+    // Usar o primeiro dia do mês de dataSaldoInicial, garantindo que nada antes de "Maio/01" seja contado se o mês for Maio
+    const y = config.dataSaldoInicial.getUTCFullYear();
+    const m = config.dataSaldoInicial.getUTCMonth();
+    dataCorte = new Date(Date.UTC(y, m, 1, 0, 0, 0));
+  }
+
   const movsCorretora = await prisma.depositoSaque.findMany({
-    where: { userId, conta: 'CORRETORA' }
+    where: { 
+      userId, 
+      conta: 'CORRETORA',
+      ...(dataCorte ? { data: { gte: dataCorte } } : {})
+    }
   })
   const netCorretora = movsCorretora.reduce(
     (sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD),
@@ -19,7 +31,11 @@ export async function getCapitalStatus(userId: string) {
   )
 
   const diasFechados = await prisma.tradingDay.findMany({
-    where: { userId, isClosed: true },
+    where: { 
+      userId, 
+      isClosed: true,
+      ...(dataCorte ? { date: { gte: dataCorte } } : {})
+    },
     select: { resultadoDia: true }
   })
   const lucroFechados = diasFechados.reduce((sum, d) => sum + (d.resultadoDia ?? 0), 0)
@@ -27,7 +43,7 @@ export async function getCapitalStatus(userId: string) {
   capitalCorretoraUSD = baseCorretora + netCorretora + lucroFechados
 
   const diaAberto = await prisma.tradingDay.findFirst({
-    where: { userId, isClosed: false }
+    where: { userId, isClosed: false } // dia aberto não precisa de dataCorte
   })
 
   if (diaAberto) {
@@ -42,7 +58,7 @@ export async function getCapitalStatus(userId: string) {
     where: { 
       userId, 
       conta: 'RESERVA',
-      data: configReserva?.dataSaldoInicial ? { gt: configReserva.dataSaldoInicial } : undefined
+      ...(dataCorte ? { data: { gte: dataCorte } } : {})
     }
   })
 

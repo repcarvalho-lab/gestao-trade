@@ -8,8 +8,8 @@ import { router } from './routes'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
-// Força a porta 4001 para coincidir com o EXPOSE do Dockerfile
-const PORT = 4001
+// Lê a porta do ambiente ou padroniza para 4000
+const PORT = Number(process.env.PORT) || 4000
 
 // ── Middlewares ──────────────────────────────────────────────
 app.use(

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, Component, type ReactNode } from 'react'
+import * as XLSX from 'xlsx'
 import {
   Plus, X, CheckCircle, XCircle, ChevronRight, Loader2,
   TrendingUp, TrendingDown, Target, ShieldAlert, RefreshCw,
@@ -919,7 +920,7 @@ function ImportarCSVModal({ onClose, onImported }: { dia: TradingDay, onClose: (
       let allRows: string[][] = [];
 
       if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
-        const XLSX = await import('xlsx');
+        // XLSX importado estaticamente no topo do arquivo
         const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];

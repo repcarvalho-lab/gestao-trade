@@ -5,6 +5,7 @@ import api from '../services/api'
 interface User {
   id: string
   email: string
+  nome?: string
   role: 'admin' | 'user'
 }
 
@@ -14,8 +15,10 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (nome: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   setToken: (token: string) => void
+  updateProfile: (nome: string, email: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,6 +28,21 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       isAuthenticated: false,
       isLoading: false,
+
+      register: async (nome, email, password) => {
+        set({ isLoading: true })
+        try {
+          const { data } = await api.post('/auth/register', { nome, email, password })
+          localStorage.setItem('accessToken', data.accessToken)
+          set({
+            user: data.user,
+            accessToken: data.accessToken,
+            isAuthenticated: true,
+          })
+        } finally {
+          set({ isLoading: false })
+        }
+      },
 
       login: async (email, password) => {
         set({ isLoading: true })
@@ -55,6 +73,16 @@ export const useAuthStore = create<AuthState>()(
       setToken: (token) => {
         localStorage.setItem('accessToken', token)
         set({ accessToken: token, isAuthenticated: true })
+      },
+
+      updateProfile: async (nome, email) => {
+        set({ isLoading: true })
+        try {
+          const { data } = await api.put('/auth/profile', { nome, email })
+          set({ user: data.user })
+        } finally {
+          set({ isLoading: false })
+        }
       },
     }),
     {

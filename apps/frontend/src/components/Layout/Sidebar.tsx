@@ -149,42 +149,45 @@ export default function Sidebar({ isCollapsed, toggleCollapse, sidebarWidth }: S
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid var(--border)', padding: isCollapsed ? '0.75rem 0.5rem' : '0.75rem' }}>
-        {user?.role === 'admin' && (
-          <NavLink
-            to="/configuracoes"
-            title={isCollapsed ? "Configurações" : undefined}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isCollapsed ? 'center' : 'flex-start',
-              gap: isCollapsed ? '0' : '0.625rem',
-              padding: isCollapsed ? '0.75rem 0' : '0.5rem 0.75rem',
-              borderRadius: '0.5rem',
-              marginBottom: '0.25rem',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              textDecoration: 'none',
-              color: 'var(--text-secondary)',
-              background: isActive ? 'var(--bg-hover)' : 'transparent',
-              transition: 'all 0.15s',
-            })}
-          >
-            <Settings size={isCollapsed ? 18 : 15} />
-            {!isCollapsed && <span>Configurações</span>}
-          </NavLink>
-        )}
-        <div
-          style={{
+        <NavLink
+          to="/configuracoes"
+          title={isCollapsed ? "Configurações" : undefined}
+          style={({ isActive }) => ({
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: isCollapsed ? 'center' : 'flex-start',
+            gap: isCollapsed ? '0' : '0.625rem',
+            padding: isCollapsed ? '0.75rem 0' : '0.5rem 0.75rem',
+            borderRadius: '0.5rem',
+            marginBottom: '0.25rem',
+            fontSize: '0.8rem',
+            fontWeight: 500,
+            textDecoration: 'none',
+            color: 'var(--text-secondary)',
+            background: isActive ? 'var(--bg-hover)' : 'transparent',
+            transition: 'all 0.15s',
+          })}
+        >
+          <Settings size={isCollapsed ? 18 : 15} />
+          {!isCollapsed && <span>Configurações</span>}
+        </NavLink>
+        <NavLink
+          to="/perfil"
+          title={isCollapsed ? `${user?.nome || user?.email} (${user?.role})` : "Meu Perfil"}
+          style={({ isActive }) => ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: isCollapsed ? 'center' : 'flex-start',
             gap: isCollapsed ? '0' : '0.625rem',
             padding: isCollapsed ? '0.5rem 0' : '0.5rem 0.75rem',
             marginBottom: '0.25rem',
-          }}
+            borderRadius: '0.5rem',
+            textDecoration: 'none',
+            background: isActive ? 'var(--bg-hover)' : 'transparent',
+            transition: 'all 0.15s',
+          })}
         >
           <div
-            title={isCollapsed ? `${user?.email} (${user?.role})` : undefined}
             style={{
               width: 28,
               height: 28,
@@ -199,27 +202,28 @@ export default function Sidebar({ isCollapsed, toggleCollapse, sidebarWidth }: S
               flexShrink: 0,
             }}
           >
-            {user?.email[0].toUpperCase()}
+            {user?.nome ? user.nome[0].toUpperCase() : user?.email[0]?.toUpperCase()}
           </div>
           {!isCollapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
                   color: 'var(--text-primary)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {user?.email}
+                {user?.nome || user?.email}
               </div>
               <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
                 {user?.role}
               </div>
             </div>
           )}
-        </div>
+        </NavLink>
         <button
           onClick={handleLogout}
           className="btn btn-ghost"

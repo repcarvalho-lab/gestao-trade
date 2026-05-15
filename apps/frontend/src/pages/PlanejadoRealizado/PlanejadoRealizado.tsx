@@ -97,18 +97,9 @@ export default function PlanejadoRealizado() {
       const net = (m.aporteReal || 0) - (m.saqueReal || 0)
       const pesoNet = m.pesoNet || 0
       
-      let cons, real, agr
-      
-      if (i === 0) {
-        // Ponto de partida: sem projeção de crescimento, igual ao saldo final real do mês
-        cons = m.bancaGlobalFinal
-        real = m.bancaGlobalFinal
-        agr = m.bancaGlobalFinal
-      } else {
-        cons = prevCons * (1 + config.retornoConservador) + net + (pesoNet * config.retornoConservador)
-        real = prevReal * (1 + config.retornoRealista)    + net + (pesoNet * config.retornoRealista)
-        agr  = prevAgr  * (1 + config.retornoAgressivo)   + net + (pesoNet * config.retornoAgressivo)
-      }
+      let cons = prevCons * (1 + config.retornoConservador) + net + (pesoNet * config.retornoConservador)
+      let real = prevReal * (1 + config.retornoRealista)    + net + (pesoNet * config.retornoRealista)
+      let agr  = prevAgr  * (1 + config.retornoAgressivo)   + net + (pesoNet * config.retornoAgressivo)
       
       prevCons = cons; prevReal = real; prevAgr = agr
       pontos.push({
@@ -132,17 +123,9 @@ export default function PlanejadoRealizado() {
       
       const realizadoFinal = mesAtual.bancaGlobalFinal ?? (mesAtual.bancaGlobalInicial + netAtual)
       
-      let cons, real, agr
-      
-      if (isFirst) {
-        cons = realizadoFinal
-        real = realizadoFinal
-        agr = realizadoFinal
-      } else {
-        cons = prevCons * (1 + config.retornoConservador) + netAtual + (pesoNet * config.retornoConservador)
-        real = prevReal * (1 + config.retornoRealista) + netAtual + (pesoNet * config.retornoRealista)
-        agr  = prevAgr  * (1 + config.retornoAgressivo) + netAtual + (pesoNet * config.retornoAgressivo)
-      }
+      let cons = prevCons * (1 + config.retornoConservador) + netAtual + (pesoNet * config.retornoConservador)
+      let real = prevReal * (1 + config.retornoRealista) + netAtual + (pesoNet * config.retornoRealista)
+      let agr  = prevAgr  * (1 + config.retornoAgressivo) + netAtual + (pesoNet * config.retornoAgressivo)
       
       pontos.push({
         mes:         mesAtual.mes,
@@ -359,7 +342,7 @@ export default function PlanejadoRealizado() {
                 tickFormatter={formatCurrency}
                 tickLine={false}
                 axisLine={false}
-                width={90}
+                width={110}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend

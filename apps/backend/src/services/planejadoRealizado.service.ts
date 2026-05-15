@@ -35,10 +35,15 @@ export async function getPlanejadoRealizado(userId: string) {
   }
 
   // Busca todos os movimentos para calcular Banca Global e Prorrateios
-  const todosMovimentos = await prisma.depositoSaque.findMany({
+  const todosMovimentosBrutos = await prisma.depositoSaque.findMany({
     where: { userId },
     orderBy: { data: 'asc' }
   })
+  
+  const dataSaldoInicialMonth = config?.dataSaldoInicial ? config.dataSaldoInicial.toISOString().slice(0, 7) : null;
+  const todosMovimentos = dataSaldoInicialMonth 
+    ? todosMovimentosBrutos.filter(mov => mov.mes >= dataSaldoInicialMonth)
+    : todosMovimentosBrutos;
 
   // Agrupa os movimentos por mês
   const movMap: Record<string, { aporte: number; saque: number; pesoNet: number }> = {}
@@ -120,10 +125,16 @@ export async function getPlanejadoRealizado(userId: string) {
   const allMonthsSet = new Set<string>();
   meses.forEach(m => allMonthsSet.add(m.mes));
   todosMovimentos.forEach(mov => allMonthsSet.add(mov.mes));
-  if (config?.dataSaldoInicial) {
-    allMonthsSet.add(config.dataSaldoInicial.toISOString().slice(0, 7));
+  if (dataSaldoInicialMonth) {
+    allMonthsSet.add(dataSaldoInicialMonth);
   }
-  const allMonths = Array.from(allMonthsSet).sort();
+  
+  let allMonths = Array.from(allMonthsSet).sort();
+
+  // Se o usuário definiu que a Banca Global começa no mês X, ignoramos o histórico anterior
+  if (dataSaldoInicialMonth) {
+    allMonths = allMonths.filter(m => m >= dataSaldoInicialMonth);
+  }
 
   // Dynamically calculate Banca Global to reflect any config changes
   let currentCorretora = config?.saldoInicialCorretora ?? 0;

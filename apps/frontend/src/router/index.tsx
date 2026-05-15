@@ -6,6 +6,7 @@ import PainelDia from '../pages/PainelDia/PainelDia'
 import ControleDiario from '../pages/ControleDiario/ControleDiario'
 import Configuracoes from '../pages/Configuracoes/Configuracoes'
 import Dashboard from '../pages/Dashboard/Dashboard'
+import Perfil from '../pages/Perfil/Perfil'
 import ProjecaoAnual from '../pages/ProjecaoAnual/ProjecaoAnual'
 import DepositosSaques from '../pages/DepositosSaques/DepositosSaques'
 import PlanejadoRealizado from '../pages/PlanejadoRealizado/PlanejadoRealizado'
@@ -40,6 +41,7 @@ export default function AppRouter() {
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="simulador" element={<Simulador />} />
           <Route path="configuracoes" element={<Configuracoes />} />
+          <Route path="perfil" element={<Perfil />} />
         </Route>
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>

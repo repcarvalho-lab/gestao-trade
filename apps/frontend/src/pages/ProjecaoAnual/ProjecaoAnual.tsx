@@ -321,7 +321,7 @@ export default function ProjecaoAnual() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="mesAno" tickFormatter={parseMesAno} stroke="var(--text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => `$${v}`} tickLine={false} axisLine={false} width={80} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v)} tickLine={false} axisLine={false} width={110} />
               <Tooltip content={<CustomTooltip />} />
               <Legend verticalAlign="top" height={36} iconType="circle" content={() => (
                 <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', fontSize: '0.78rem', paddingBottom: '0.5rem' }}>

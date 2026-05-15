@@ -93,11 +93,28 @@ export async function getDashboard(userId: string) {
   }
 
   if (diasMesAtual.length === 0) {
+    const capitalAtual = capStatus.bancaGlobalUSD;
+
+    const movsMesAtual = await prisma.depositoSaque.findMany({
+      where: { userId, data: { gte: inicioMesAtual } }
+    })
+    
+    let netUSD = 0;
+    for (const m of movsMesAtual) {
+       if (m.conta === 'RESERVA') {
+          netUSD += (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL) / (config?.cambioCompra || 5.0)
+       } else {
+          netUSD += (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD)
+       }
+    }
+    
+    const capitalInicio = capitalAtual - netUSD;
+
     desempenhoMesAtual = {
       nivel: 'SEM_DADOS',
       rentabilidade: 0,
-      capitalInicio: 0,
-      capitalAtual: 0,
+      capitalInicio,
+      capitalAtual,
       lucroMes: 0,
       diasOperados: 0,
       diasPositivos: 0,
