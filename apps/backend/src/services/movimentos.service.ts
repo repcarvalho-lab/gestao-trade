@@ -88,7 +88,8 @@ export async function syncTradingDayCascade(userId: string, dataAncora: Date) {
     const depositoReserva = netHojeReservaBRL / (config.cambioCompra || 5.0)
 
     const capitalInicialReal = prevCapCorretora + netHoje
-    const bancaGlobal = capitalInicialReal + reservaOuroUSD
+    const reservaBase = config.saldoInicialReserva ?? 0
+    const bancaGlobal = capitalInicialReal + reservaBase + reservaOuroUSD
 
     const calc = recalcularDia({ ...dia, capitalInicialReal, deposito: netHoje }, dia.trades, config, bancaGlobal)
     const statusFinal = (dia.isClosed && (calc.status === 'ATENCAO' || calc.status === 'OPERANDO') ? 'META_NAO_ATINGIDA' : calc.status) as typeof calc.status
