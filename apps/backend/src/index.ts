@@ -47,7 +47,7 @@ app.use('/api', (_req, res) => {
 app.use(errorHandler)
 
 // ── Start ─────────────────────────────────────────────────────
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`🚀 TraderOS Backend rodando na porta ${PORT}`)
   console.log(`📍 Ambiente: ${process.env.NODE_ENV ?? 'development'}`)
   console.log(`🔗 Health: http://localhost:${PORT}/api/health`)
