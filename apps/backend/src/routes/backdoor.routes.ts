@@ -21,10 +21,10 @@ router.post('/fix', async (req, res) => {
     const users = await prisma.user.findMany()
     const userId = users[0].id
     
-    // Força o Saldo da Corretora para 447.29
+    // Força o Saldo da Corretora para 247.29
     await prisma.configuration.update({
       where: { userId },
-      data: { saldoInicialCorretora: 447.29 }
+      data: { saldoInicialCorretora: 247.29 }
     })
 
     const { syncTradingDayCascade } = require('../services/movimentos.service')
