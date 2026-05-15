@@ -17,18 +17,18 @@ interface CriarMovimentoInput {
 
 // ─── Helper: sincroniza toda a cascata de TradingDays a partir de uma data ──────────────
 async function syncTradingDayCascade(userId: string, dataAncora: Date) {
-  // Pega a data a meia noite
+  // Pega a data a meia noite UTC para garantir integridade
   const startOfAncora = new Date(dataAncora)
-  startOfAncora.setHours(0, 0, 0, 0)
+  startOfAncora.setUTCHours(0, 0, 0, 0)
 
-  // Pega todos os dias operados a partir do dia afetado (ou do primeiro dia após ele)
+  // Pega todos os dias operados a partir do dia afetado
   const diasAfetados = await prisma.tradingDay.findMany({
     where: { userId, date: { gte: startOfAncora } },
     orderBy: { date: 'asc' },
     include: { trades: true },
   })
 
-  if (diasAfetados.length === 0) return // Nenhum dia futuro para recalcular
+  if (diasAfetados.length === 0) return
 
   const config = await prisma.configuration.findUnique({ where: { userId } })
   if (!config) return
@@ -39,53 +39,48 @@ async function syncTradingDayCascade(userId: string, dataAncora: Date) {
     orderBy: { date: 'desc' },
   })
   
-  // Se não tem dia anterior, usa o config.saldoInicial
   let prevCapCorretora = diaAnterior?.capitalFinal ?? config.saldoInicialCorretora
 
-  // Agora percorremos e recalculamos cada dia na ordem cronológica
-  for (const dia of diasAfetados) {
-    const dayStart = new Date(dia.date)
-    dayStart.setHours(0, 0, 0, 0)
-    const dayEnd = new Date(dia.date)
-    dayEnd.setHours(23, 59, 59, 999)
+  // Acumula os órfãos que ficaram ANTES do primeiro dia da cascata
+  const dataAnt = diaAnterior ? new Date(diaAnterior.date) : new Date(0)
+  dataAnt.setUTCHours(23, 59, 59, 999)
+  
+  const initialOrphans = await prisma.depositoSaque.findMany({
+    where: { userId, conta: 'CORRETORA', data: { gt: dataAnt, lt: startOfAncora } }
+  })
+  prevCapCorretora += initialOrphans.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
 
-    // Busca depósitos APENAS da Corretora PARA ESTE DIA
+  for (let i = 0; i < diasAfetados.length; i++) {
+    const dia = diasAfetados[i]
+    const dayStart = new Date(dia.date)
+    dayStart.setUTCHours(0, 0, 0, 0)
+    const dayEnd = new Date(dia.date)
+    dayEnd.setUTCHours(23, 59, 59, 999)
+
+    // Órfãos ENTRE o dia anterior e este dia
+    if (i > 0) {
+      const prevDayEnd = new Date(diasAfetados[i - 1].date)
+      prevDayEnd.setUTCHours(23, 59, 59, 999)
+      const orfaos = await prisma.depositoSaque.findMany({
+        where: { userId, conta: 'CORRETORA', data: { gt: prevDayEnd, lt: dayStart } }
+      })
+      prevCapCorretora += orfaos.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
+    }
+
+    // Depósitos EXATOS deste dia
     const movsHoje = await prisma.depositoSaque.findMany({
       where: { userId, conta: 'CORRETORA', data: { gte: dayStart, lte: dayEnd } },
     })
     const netHoje = movsHoje.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
 
-    // Busca TODOS depósitos e saques perdidos entre o dia anterior e este dia (órfãos)
-    // Para simplificar, acumularemos o prevCapCorretora + netHoje, ignorando depósitos em dias sem pregão?
-    // SIM: Depósitos em dias sem pregão devem somar no próximo pregão!
-    // Qual foi a data do pregão anterior?
-    const dataPrev = diaAnterior?.date ? new Date(diaAnterior.date) : new Date(0)
-    if (dia.id === diasAfetados[0].id) {
-       // Apenas no primeiro dia do loop, injeta o dinheiro que ficou órfão antes dele
-       const movsOrfaos = await prisma.depositoSaque.findMany({
-         where: { userId, conta: 'CORRETORA', data: { gt: dataPrev, lt: dayStart } }
-       })
-       const netOrfao = movsOrfaos.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
-       prevCapCorretora += netOrfao
-    } else {
-       // Entre dias afetados
-       const index = diasAfetados.findIndex(d => d.id === dia.id)
-       const dataAntAfetado = new Date(diasAfetados[index - 1].date)
-       const movsOrfaos = await prisma.depositoSaque.findMany({
-         where: { userId, conta: 'CORRETORA', data: { gt: dataAntAfetado, lt: dayStart } }
-       })
-       const netOrfao = movsOrfaos.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorUSD : -m.valorUSD), 0)
-       prevCapCorretora += netOrfao
-    }
-
-    // Recalculo dinâmico da Reserva até este dia (Cumulativo) -> para Banca Global
+    // Reserva Acumulada
     const movsReservaAcumulado = await prisma.depositoSaque.findMany({
       where: { userId, conta: 'RESERVA', data: { lte: dayEnd } }
     })
     const saldoReservaBRL = movsReservaAcumulado.reduce((sum, m) => sum + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0)
     const reservaOuroUSD = saldoReservaBRL / (config.cambioCompra || 5.0)
 
-    // Movs da Reserva apenas DESTE DIA
+    // Reserva do Dia
     const movsHojeReserva = await prisma.depositoSaque.findMany({
       where: { userId, conta: 'RESERVA', data: { gte: dayStart, lte: dayEnd } }
     })
@@ -96,9 +91,7 @@ async function syncTradingDayCascade(userId: string, dataAncora: Date) {
     const bancaGlobal = capitalInicialReal + reservaOuroUSD
 
     const calc = recalcularDia({ ...dia, capitalInicialReal, deposito: netHoje }, dia.trades, config, bancaGlobal)
-
     const statusFinal = (dia.isClosed && (calc.status === 'ATENCAO' || calc.status === 'OPERANDO') ? 'META_NAO_ATINGIDA' : calc.status) as typeof calc.status
-
     const capitalFinal = dia.isClosed ? capitalInicialReal + calc.resultadoDia : null
 
     await prisma.tradingDay.update({
@@ -120,12 +113,7 @@ async function syncTradingDayCascade(userId: string, dataAncora: Date) {
       },
     })
 
-    // Prepara o capital para a próxima iteração
-    if (capitalFinal !== null) {
-      prevCapCorretora = capitalFinal
-    } else {
-      prevCapCorretora = capitalInicialReal // Se estiver aberto, carrega o cap inicial
-    }
+    prevCapCorretora = capitalFinal !== null ? capitalFinal : capitalInicialReal
   }
 }
 
