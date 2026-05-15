@@ -131,7 +131,8 @@ export async function getDashboard(userId: string) {
       where: { userId, conta: 'RESERVA', data: { lt: inicioMesAtual } } 
     })
     const saldoReservaAntesBRL = movsReservaAntes.reduce((s, m) => s + (m.tipo === 'DEPOSITO' ? m.valorBRL : -m.valorBRL), 0)
-    const capReservaInicioMes = saldoReservaAntesBRL / (config?.cambioCompra || 5.0)
+    const reservaConfig = config?.saldoInicialReserva ?? 0
+    const capReservaInicioMes = reservaConfig + (saldoReservaAntesBRL / (config?.cambioCompra || 5.0))
 
     const capitalInicioGlobal = capCorretoraInicioMes + capReservaInicioMes
 
