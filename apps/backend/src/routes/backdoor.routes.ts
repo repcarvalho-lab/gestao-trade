@@ -16,4 +16,31 @@ router.get('/dump', async (req, res) => {
   }
 })
 
+router.post('/fix', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany()
+    const userId = users[0].id
+    
+    // Força o Saldo da Corretora para 447.29
+    await prisma.configuration.update({
+      where: { userId },
+      data: { saldoInicialCorretora: 447.29 }
+    })
+
+    const { syncTradingDayCascade } = require('../services/movimentos.service')
+    const primeiroDia = await prisma.tradingDay.findFirst({
+      where: { userId },
+      orderBy: { date: 'asc' }
+    })
+    
+    if (primeiroDia) {
+      await syncTradingDayCascade(userId, primeiroDia.date)
+    }
+
+    res.json({ success: true, message: 'Fixed!' })
+  } catch (e: any) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 export const backdoorRoutes = router
