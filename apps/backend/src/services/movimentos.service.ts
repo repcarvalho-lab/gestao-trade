@@ -39,7 +39,7 @@ async function syncTradingDayCascade(userId: string, dataAncora: Date) {
     orderBy: { date: 'desc' },
   })
   
-  let prevCapCorretora = diaAnterior?.capitalFinal ?? config.saldoInicialCorretora
+  let prevCapCorretora = diaAnterior?.capitalFinal ?? config.saldoInicialCorretora ?? 0
 
   // Acumula os órfãos que ficaram ANTES do primeiro dia da cascata
   const dataAnt = diaAnterior ? new Date(diaAnterior.date) : new Date(0)
