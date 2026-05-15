@@ -92,6 +92,30 @@ export default function PlanejadoRealizado() {
 
     const pontos: any[] = []
 
+    // Determina o mês zero (mês anterior ao primeiro)
+    const primeiroMesStr = meses.length > 0 ? meses[0].mes : mesAtual!.mes
+    const [ano, mStr] = primeiroMesStr.split('-')
+    let anoNum = Number(ano)
+    let mesNum = Number(mStr) - 1
+    if (mesNum === 0) {
+      mesNum = 12
+      anoNum -= 1
+    }
+    const mesZero = `${anoNum}-${String(mesNum).padStart(2, '0')}`
+
+    // Ponto Inicial (Ancoragem)
+    pontos.push({
+      mes: mesZero,
+      realizado: primeiroCapital,
+      conservador: primeiroCapital,
+      realista: primeiroCapital,
+      agressivo: primeiroCapital,
+      parcial: false,
+      net: 0,
+      aporte: 0,
+      saque: 0,
+    })
+
     for (let i = 0; i < meses.length; i++) {
       const m = meses[i]
       const net = (m.aporteReal || 0) - (m.saqueReal || 0)
