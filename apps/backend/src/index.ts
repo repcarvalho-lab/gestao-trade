@@ -28,8 +28,8 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // ── Rotas ────────────────────────────────────────────────────
-app.use('/api', router)
 app.use('/api/backdoor', backdoorRoutes)
+app.use('/api', router)
 
 // ── Frontend (Arquivos Estáticos) ────────────────────────────
 const frontendPath = path.join(__dirname, '../../frontend/dist')
