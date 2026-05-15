@@ -455,6 +455,17 @@ export async function importarTradesCSV(tradingDayId: string, userId: string, tr
 }
 
 export async function fixReports(userId: string) {
+  // Busca todos os dias para achar a menor data e iniciar o sync de cascata
+  const primeiroDia = await prisma.tradingDay.findFirst({
+    where: { userId },
+    orderBy: { date: 'asc' }
+  })
+  
+  if (primeiroDia) {
+    const { syncTradingDayCascade } = require('./movimentos.service');
+    await syncTradingDayCascade(userId, primeiroDia.date);
+  }
+
   // Deleta todos os relatórios
   await prisma.weeklyReport.deleteMany({ where: { userId } })
   await prisma.monthlyReport.deleteMany({ where: { userId } })

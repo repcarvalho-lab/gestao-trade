@@ -16,7 +16,7 @@ interface CriarMovimentoInput {
 }
 
 // ─── Helper: sincroniza toda a cascata de TradingDays a partir de uma data ──────────────
-async function syncTradingDayCascade(userId: string, dataAncora: Date) {
+export async function syncTradingDayCascade(userId: string, dataAncora: Date) {
   // Pega a data a meia noite UTC para garantir integridade
   const startOfAncora = new Date(dataAncora)
   startOfAncora.setUTCHours(0, 0, 0, 0)
