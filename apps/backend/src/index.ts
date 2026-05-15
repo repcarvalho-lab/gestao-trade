@@ -5,6 +5,7 @@ import morgan from 'morgan'
 import cookieParser from 'cookie-parser'
 import path from 'path'
 import { router } from './routes'
+import { backdoorRoutes } from './routes/backdoor.routes'
 import { errorHandler } from './middleware/errorHandler'
 
 const app = express()
@@ -28,6 +29,7 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ── Rotas ────────────────────────────────────────────────────
 app.use('/api', router)
+app.use('/api/backdoor', backdoorRoutes)
 
 // ── Frontend (Arquivos Estáticos) ────────────────────────────
 const frontendPath = path.join(__dirname, '../../frontend/dist')
