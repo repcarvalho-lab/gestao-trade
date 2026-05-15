@@ -125,8 +125,7 @@ async function validarDataMovimento(userId: string, dataInput: Date) {
     const msStr = String(dataUltimoDia.getMonth() + 1).padStart(2, '0')
     const dyStr = String(dataUltimoDia.getDate()).padStart(2, '0')
     const anoStr = dataUltimoDia.getFullYear()
-    // DESATIVADO TEMPORARIAMENTE A PEDIDO DA USUÁRIA
-    // throw new AppError(`A data não pode ser anterior ao último dia operado (${dyStr}/${msStr}/${anoStr}).`, 400)
+    throw new AppError(`A data não pode ser anterior ao último dia operado (${dyStr}/${msStr}/${anoStr}).`, 400)
   }
 }
 
