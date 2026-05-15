@@ -390,10 +390,10 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>Mês base para que os relatórios puxem este valor como ponto de partida.</span>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <select className="input" value={m} onChange={e => handleChange(e.target.value, y)} disabled={true} style={{ flex: 1, maxWidth: 160, cursor: 'not-allowed', opacity: 0.7 }}>
+                    <select className="input" value={m} onChange={e => handleChange(e.target.value, y)} style={{ flex: 1, maxWidth: 160 }}>
                       {meses.map(mes => <option key={mes.v} value={mes.v}>{mes.l}</option>)}
                     </select>
-                    <select className="input" value={y} onChange={e => handleChange(m, e.target.value)} disabled={true} style={{ width: 100, cursor: 'not-allowed', opacity: 0.7 }}>
+                    <select className="input" value={y} onChange={e => handleChange(m, e.target.value)} style={{ width: 100 }}>
                       {anos.map(ano => <option key={ano} value={ano}>{ano}</option>)}
                     </select>
                   </div>

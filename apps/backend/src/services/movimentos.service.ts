@@ -140,13 +140,7 @@ async function validarDataMovimento(userId: string, dataInput: Date) {
   const dataUltimoDia = new Date(ultimoDia.date)
   dataUltimoDia.setHours(0, 0, 0, 0)
 
-  if (dataMovimento < dataUltimoDia) {
-    // Format "13/04/2026"
-    const msStr = String(dataUltimoDia.getMonth() + 1).padStart(2, '0')
-    const dyStr = String(dataUltimoDia.getDate()).padStart(2, '0')
-    const anoStr = dataUltimoDia.getFullYear()
-    throw new AppError(`A data não pode ser anterior ao último dia operado (${dyStr}/${msStr}/${anoStr}).`, 400)
-  }
+  // Permite dataRetroativa, pois a nova funcionalidade de cascata vai recalcular tudo daqui pra frente automaticamente.
 }
 
 export async function criarMovimento(input: CriarMovimentoInput) {
