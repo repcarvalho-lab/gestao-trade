@@ -352,13 +352,13 @@ function TabFinanceiro({ form, set, onSave, saving, saved }: {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <ConfigField id="saldoInicialCorretora" label="Saldo na Corretora"
                 desc="Capital em US$ na conta da corretora."
-                type="number" step="0.01" min="0" disabled={true}
+                type="number" step="0.01" min="0" disabled={false}
                 value={form.saldoInicialCorretora ?? ''}
                 onChange={v => set('saldoInicialCorretora', v ? String(Number(v)) : '')} suffix="US$" />
 
               <ConfigField id="saldoInicialReserva" label="Saldo de Reserva"
                 desc="Capital em US$ em caixa fora da corretora."
-                type="number" step="0.01" min="0" disabled={true}
+                type="number" step="0.01" min="0" disabled={false}
                 value={form.saldoInicialReserva ?? ''}
                 onChange={v => set('saldoInicialReserva', v ? String(Number(v)) : '')} suffix="US$" />
             </div>
