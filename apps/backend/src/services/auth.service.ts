@@ -42,7 +42,7 @@ export async function register(nome: string, email: string, passwordPlain: strin
   const refreshToken = generateRefreshToken(payload)
 
   // Envia email de forma assíncrona (sem travar o retorno)
-  sendWelcomeEmail(user.email, user.nome).catch(err => console.error(err))
+  sendWelcomeEmail(user.email, user.nome || 'Usuário').catch(err => console.error(err))
 
   return {
     accessToken,
