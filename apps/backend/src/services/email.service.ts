@@ -13,13 +13,13 @@ const transporter = nodemailer.createTransport({
 export async function sendWelcomeEmail(to: string, name: string) {
   try {
     const info = await transporter.sendMail({
-      from: `"Gestão Trade" <${process.env.SMTP_USER}>`,
+      from: `"TraderOS" <${process.env.SMTP_USER}>`,
       to,
-      subject: 'Bem-vindo(a) ao Gestão Trade! 🚀',
+      subject: 'Bem-vindo(a) ao TraderOS! 🚀',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
           <h2 style="color: #2563eb;">Olá, ${name}!</h2>
-          <p>Sua conta no <strong>Gestão Trade</strong> foi criada com sucesso.</p>
+          <p>Sua conta no <strong>TraderOS</strong> foi criada com sucesso.</p>
           <p>Estamos muito felizes em ter você conosco. Nossa plataforma foi desenhada para ajudar você a ter controle total sobre suas operações, capital e disciplina.</p>
           <p>Dicas para começar:</p>
           <ul>
@@ -29,7 +29,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
           </ul>
           <br/>
           <p>Bons trades e sucesso na sua jornada!</p>
-          <p>Um abraço,<br/>Equipe Gestão Trade</p>
+          <p>Um abraço,<br/>Equipe TraderOS</p>
         </div>
       `,
     })
