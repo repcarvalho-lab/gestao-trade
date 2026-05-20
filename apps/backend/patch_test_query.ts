@@ -1,5 +1,14 @@
-const data1 = new Date("2026-05-14T00:00:00.000Z");
-const inicio = new Date("2026-05-10T00:00:00.000Z");
-const fim = new Date("2026-05-16T23:59:59.999Z");
+import { prisma } from './src/lib/prisma'
 
-console.log("Is between?", data1 >= inicio && data1 <= fim);
+async function run() {
+  const user = await prisma.user.findFirst()
+  if (!user) return console.log("No user")
+  const dias = await prisma.tradingDay.findMany({
+    where: { userId: user.id },
+    orderBy: { date: 'asc' },
+    select: { date: true, capitalFinal: true }
+  })
+  console.log(dias)
+}
+
+run().catch(console.error).finally(() => prisma.$disconnect())

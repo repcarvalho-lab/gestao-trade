@@ -1,9 +1,9 @@
 import nodemailer from 'nodemailer'
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
+  host: process.env.SMTP_HOST?.trim() || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT?.trim()) || 587,
+  secure: process.env.SMTP_SECURE?.trim() === 'true',
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
 
 export async function sendWelcomeEmail(to: string, name: string) {
   try {
+    console.log(`[SMTP] Iniciando disparo de boas-vindas para: ${to} (remetente: ${process.env.SMTP_USER})`);
     const info = await transporter.sendMail({
       from: `"TraderOS" <${process.env.SMTP_USER}>`,
       to,
