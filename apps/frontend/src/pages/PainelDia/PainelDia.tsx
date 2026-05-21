@@ -14,6 +14,7 @@ import { formatUSD, formatBRL, formatPct, formatDateFull, formatTime, valueClass
 
 // ─── Tipos ────────────────────────────────────────────────────
 interface MotivoEntrada { id: string; nome: string; ativo: boolean }
+interface Estrategia { id: string; nome: string; ativo: boolean }
 interface AtivoObj { id: string; nome: string; ativo: boolean; payout: number }
 interface Movimento {
   id: string
@@ -121,8 +122,8 @@ function IniciarDiaModal({ onClose, onCreated }: {
 }
 
 // ─── Modal: Nova Operação ─────────────────────────────────────
-function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
-  dia: TradingDay; motivos: MotivoEntrada[]; ativosOp: AtivoObj[]
+function NovaOperacaoModal({ dia, motivos, estrategias, ativosOp, onClose, onCreated }: {
+  dia: TradingDay; motivos: MotivoEntrada[]; estrategias: Estrategia[]; ativosOp: AtivoObj[]
   onClose: () => void; onCreated: () => void
 }) {
   const { criarTrade, fetchDiaAberto } = usePainelStore()
@@ -153,6 +154,7 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
   const [valor, setValor] = useState(() => getValorSugerido(sugestaoTipo))
   const [motivoId, setMotivoId] = useState('')
   const [motivoOutro, setMotivoOutro] = useState('')
+  const [estrategia, setEstrategia] = useState('')
   const [horario, setHorario] = useState(() => new Date().toTimeString().slice(0, 5))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -176,6 +178,7 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
         tipo, ativo: ativo.trim().toUpperCase(), valor: parseFloat(valor),
         motivoId: motivoSelecionado?.nome !== 'Outro' ? motivoId : undefined,
         motivoOutro: motivoSelecionado?.nome === 'Outro' ? motivoOutro : undefined,
+        estrategia: estrategia.trim() || undefined,
         horario: dataIso,
       })
       await fetchDiaAberto()
@@ -256,9 +259,16 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
           {motivoSelecionado?.nome === 'Outro' && (
             <div>
               <label className="label" htmlFor="trade-motivo-outro">Descreva a origem</label>
-              <input id="trade-motivo-outro" className="input" placeholder="Descreva a origem da entrada..." value={motivoOutro} onChange={e => setMotivoOutro(e.target.value)} />
+              <input id="trade-motivo-outro" className="input" placeholder="Ex: Canal do Fulano..." value={motivoOutro} onChange={e => setMotivoOutro(e.target.value)} />
             </div>
           )}
+          <div>
+            <label className="label" htmlFor="trade-estrategia">Estratégia / Gatilho <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.75rem' }}>(opcional)</span></label>
+            <select id="trade-estrategia" className="input" value={estrategia} onChange={e => setEstrategia(e.target.value)}>
+              <option value="">Nenhuma ou Genérica...</option>
+              {estrategias.map(e => <option key={e.id} value={e.nome}>{e.nome}</option>)}
+            </select>
+          </div>
           {error && <div style={{ padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
             <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
@@ -273,8 +283,8 @@ function NovaOperacaoModal({ dia, motivos, ativosOp, onClose, onCreated }: {
 }
 
 // ─── Modal: Editar Trade ──────────────────────────────────────
-function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
-  trade: Trade; motivos: MotivoEntrada[]; ativosOp: AtivoObj[]
+function EditarTradeModal({ trade, motivos, estrategias, ativosOp, onClose, onSaved }: {
+  trade: Trade; motivos: MotivoEntrada[]; estrategias: Estrategia[]; ativosOp: AtivoObj[]
   onClose: () => void; onSaved: () => void
 }) {
   const { editarTrade } = usePainelStore()
@@ -286,6 +296,7 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
   })
   const [motivoId, setMotivoId] = useState(trade.motivo ? motivos.find(m => m.nome === trade.motivo?.nome)?.id ?? '' : '')
   const [motivoOutro, setMotivoOutro] = useState(trade.motivoOutro ?? '')
+  const [estrategia, setEstrategia] = useState(trade.estrategia ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const motivoSelecionado = motivos.find(m => m.id === motivoId)
@@ -308,6 +319,7 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
         valor: parseFloat(valor),
         motivoId: motivoSelecionado && motivoSelecionado.nome !== 'Outro' ? motivoId : null,
         motivoOutro: motivoSelecionado?.nome === 'Outro' ? motivoOutro : null,
+        estrategia: estrategia.trim() || null,
         horario: dataIso,
       })
       onSaved()
@@ -368,6 +380,13 @@ function EditarTradeModal({ trade, motivos, ativosOp, onClose, onSaved }: {
               <input id="edit-motivo-outro" className="input" value={motivoOutro} onChange={e => setMotivoOutro(e.target.value)} />
             </div>
           )}
+          <div>
+            <label className="label" htmlFor="edit-estrategia">Estratégia / Gatilho <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.75rem' }}>(opcional)</span></label>
+            <select id="edit-estrategia" className="input" value={estrategia} onChange={e => setEstrategia(e.target.value)}>
+              <option value="">Nenhuma ou Genérica...</option>
+              {estrategias.map(e => <option key={e.id} value={e.nome}>{e.nome}</option>)}
+            </select>
+          </div>
           {error && <div style={{ padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>{error}</div>}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
             <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={onClose}>Cancelar</button>
@@ -837,7 +856,10 @@ function TradeRow({ trade, motivos, ativosOp, onMarcar }: {
         <td><span style={{ fontWeight: 700, color: tipoColor[trade.tipo] ?? 'var(--text-primary)' }}>{trade.tipo}</span></td>
         <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{trade.ativo}</td>
         <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{formatUSD(trade.valor)}</td>
-        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{trade.motivo?.nome ?? trade.motivoOutro ?? '—'}</td>
+        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+          {trade.motivo?.nome ?? trade.motivoOutro ?? '—'}
+          {trade.estrategia && <div style={{ fontSize: '0.65rem', opacity: 0.7 }}>{trade.estrategia}</div>}
+        </td>
         <td><span className={`badge ${statusBadge}`}>{trade.status}</span></td>
         <td style={{ fontWeight: 700 }} className={valueClass(trade.resultado)}>
           {trade.resultado != null ? (trade.resultado > 0 ? '+' : '') + formatUSD(trade.resultado) : '—'}
@@ -875,14 +897,8 @@ function TradeRow({ trade, motivos, ativosOp, onMarcar }: {
           {errorLocal && <div style={{ position: 'absolute', bottom: '-5px', right: 0, fontSize: '0.65rem', color: 'var(--accent-loss)', background: 'var(--bg-card)', padding: '2px 4px', borderRadius: '4px', border: '1px solid var(--accent-loss)', zIndex: 10 }}>{errorLocal}</div>}
         </td>
       </tr>
-      {showEditar && (
-        <EditarTradeModal
-          trade={trade}
-          motivos={motivos}
-          ativosOp={ativosOp}
-          onClose={() => setShowEditar(false)}
-          onSaved={() => setShowEditar(false)}
-        />
+      {tradeEdicao && (
+        <EditarTradeModal trade={tradeEdicao} motivos={motivos} estrategias={estrategias} ativosOp={ativosOp} onClose={() => setTradeEdicao(null)} onSaved={() => setTradeEdicao(null)} />
       )}
     </>
   )
@@ -1089,6 +1105,7 @@ function PainelDiaInner() {
   const { config, fetchConfig } = useConfigStore()
   const { capital, fetchCapital } = useCapitalStore()
   const [motivos, setMotivos] = useState<MotivoEntrada[]>([])
+  const [estrategias, setEstrategias] = useState<Estrategia[]>([])
   const [ativosOp, setAtivosOp] = useState<AtivoObj[]>([])
   const [temDiasAnteriores, setTemDiasAnteriores] = useState(false)
   const [showIniciar, setShowIniciar] = useState(false)
@@ -1103,13 +1120,15 @@ function PainelDiaInner() {
 
   const carregarDados = useCallback(async () => {
     try {
-      const [{ data: mData }, { data: aData }, { data: diasList }] = await Promise.all([
+      const [{ data: mData }, { data: aData }, { data: eData }, { data: diasList }] = await Promise.all([
         api.get('/motivos'),
         api.get('/ativos'),
+        api.get('/estrategias'),
         api.get('/trading-days')
       ])
       setMotivos(mData)
       setAtivosOp(aData)
+      setEstrategias(eData)
       setTemDiasAnteriores(diasList.length > 0)
       const fechados = (diasList as any[]).filter((d: any) => d.isClosed)
       if (fechados.length > 0) setUltimoDia(fechados[0])
@@ -1556,7 +1575,7 @@ function PainelDiaInner() {
 
       {/* ── Modais ── */}
       {showNova && dia && (
-        <NovaOperacaoModal dia={dia} motivos={motivos} ativosOp={ativosOp} onClose={() => setShowNova(false)} onCreated={() => setShowNova(false)} />
+        <NovaOperacaoModal dia={dia} motivos={motivos} estrategias={estrategias} ativosOp={ativosOp} onClose={() => setShowNova(false)} onCreated={() => setShowNova(false)} />
       )}
       {showImportar && dia && (
         <ImportarCSVModal dia={dia} onClose={() => setShowImportar(false)} onImported={() => setShowImportar(false)} />

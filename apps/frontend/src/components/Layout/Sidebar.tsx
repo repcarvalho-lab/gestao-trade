@@ -13,6 +13,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Calculator,
+  Target,
+  Users,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useCapitalStore } from '../../store/capitalStore'
@@ -27,6 +29,7 @@ const navItems = [
   { to: '/planejado-realizado', icon: TrendingUp,     label: 'Planejado x Realizado' },
   { to: '/projecao',            icon: LineChart,      label: 'Projeção Anual' },
   { to: '/simulador',           icon: Calculator,     label: 'Simulador' },
+  { to: '/radar',               icon: Target,         label: 'Radar de Sinais' },
   { to: '/movimentos',          icon: ArrowLeftRight, label: 'Depósitos e Saques' },
 ]
 
@@ -171,6 +174,30 @@ export default function Sidebar({ isCollapsed, toggleCollapse, sidebarWidth }: S
           <Settings size={isCollapsed ? 18 : 15} />
           {!isCollapsed && <span>Configurações</span>}
         </NavLink>
+        {user?.role === 'admin' && (
+          <NavLink
+            to="/admin/users"
+            title={isCollapsed ? "Usuários (Admin)" : undefined}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: isCollapsed ? 'center' : 'flex-start',
+              gap: isCollapsed ? '0' : '0.625rem',
+              padding: isCollapsed ? '0.75rem 0' : '0.5rem 0.75rem',
+              borderRadius: '0.5rem',
+              marginBottom: '0.25rem',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              textDecoration: 'none',
+              color: 'var(--text-secondary)',
+              background: isActive ? 'var(--bg-hover)' : 'transparent',
+              transition: 'all 0.15s',
+            })}
+          >
+            <Users size={isCollapsed ? 18 : 15} />
+            {!isCollapsed && <span>Usuários (Admin)</span>}
+          </NavLink>
+        )}
         <NavLink
           to="/perfil"
           title={isCollapsed ? `${user?.nome || user?.email} (${user?.role})` : "Meu Perfil"}

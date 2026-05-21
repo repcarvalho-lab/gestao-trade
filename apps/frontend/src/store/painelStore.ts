@@ -18,6 +18,7 @@ export interface Trade {
   ciclo: { numero: number; status: CicloStatus }
   motivo: { nome: string } | null
   motivoOutro: string | null
+  estrategia: string | null
 }
 
 export interface TradingDay {
@@ -68,6 +69,7 @@ interface PainelState {
     valor: number
     motivoId?: string
     motivoOutro?: string
+    estrategia?: string
     horario?: string
   }) => Promise<Trade>
   editarTrade: (tradeId: string, updates: {
@@ -75,6 +77,7 @@ interface PainelState {
     valor?: number
     motivoId?: string | null
     motivoOutro?: string | null
+    estrategia?: string | null
     horario?: string
   }) => Promise<void>
   marcarResultado: (tradeId: string, resultado: 'WIN' | 'LOSS') => Promise<void>

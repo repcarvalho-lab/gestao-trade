@@ -12,6 +12,9 @@ import saquesRoutes from './saques.routes'
 import erroDiaRoutes from './erroDia.routes'
 import relatoriosRoutes from './relatorios.routes'
 import capitalRoutes from './capital.routes'
+import { signalsRoutes } from './signals.routes'
+import adminRoutes from './admin.routes'
+import estrategiasRoutes from './estrategias.routes'
 
 export const router = Router()
 
@@ -21,6 +24,7 @@ router.use('/auth', authRoutes)
 router.use('/config', configRoutes)
 router.use('/motivos', motivosRoutes)
 router.use('/ativos', ativosRoutes)
+router.use('/estrategias', estrategiasRoutes)
 router.use('/trading-days', tradingDayRoutes)
 router.use('/trades', tradesRoutes)
 router.use('/movimentos', movimentosRoutes)
@@ -29,4 +33,6 @@ router.use('/saques', saquesRoutes)
 router.use('/erros-dia', erroDiaRoutes)
 router.use('/relatorios', relatoriosRoutes)
 router.use('/capital', capitalRoutes)
+router.use('/signals', signalsRoutes)
+router.use('/admin', adminRoutes)
 router.use('/', analyticsRoutes)

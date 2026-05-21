@@ -43,6 +43,7 @@ interface TradeDetalhe {
   horario: string
   motivo: { nome: string } | null
   motivoOutro: string | null
+  estrategia: string | null
   ciclo: { numero: number }
 }
 
@@ -320,7 +321,10 @@ function DetalheModal({ diaId, onClose, onUpdate }: {
                           <td><span style={{ fontWeight: 700, color: tipoColor[t.tipo] ?? 'var(--text-primary)' }}>{t.tipo}</span></td>
                           <td style={{ fontWeight: 500 }}>{t.ativo}</td>
                           <td>{formatUSD(t.valor)}</td>
-                          <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{t.motivo?.nome ?? t.motivoOutro ?? '—'}</td>
+                          <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                            {t.motivo?.nome ?? t.motivoOutro ?? '—'}
+                            {t.estrategia && <div style={{ fontSize: '0.65rem', opacity: 0.7 }}>{t.estrategia}</div>}
+                          </td>
                           <td>
                             <span className={`badge ${t.status === 'WIN' ? 'badge-win' : t.status === 'LOSS' ? 'badge-loss' : 'badge-neutral'}`}>{t.status}</span>
                           </td>

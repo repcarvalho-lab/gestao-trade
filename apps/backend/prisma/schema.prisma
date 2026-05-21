@@ -14,6 +14,7 @@ model User {
   nome           String?
   passwordHash   String
   role           Role              @default(user)
+  isActive       Boolean           @default(true)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   aportes        AportePlanejado[]
@@ -28,6 +29,7 @@ model User {
   trades         Trade[]
   tradingDays    TradingDay[]
   weeklyReports  WeeklyReport[]
+  estrategias    Estrategia[]
 }
 
 model Configuration {
@@ -144,6 +146,7 @@ model Trade {
   valor        Float
   motivoId     String?
   motivoOutro  String?
+  estrategia   String?
   status       TradeStatus    @default(ABERTA)
   resultado    Float?
   horario      DateTime       @default(now())
@@ -208,28 +211,28 @@ model ErroDia {
 }
 
 model WeeklyReport {
-  id             String   @id @default(uuid())
-  userId         String
-  semana         Int
-  ano            Int
-  dataInicial    DateTime
-  dataFinal      DateTime
-  diasOperados   Int      @default(0)
-  diasPositivos  Int      @default(0)
-  diasNegativos  Int      @default(0)
-  totalWin       Int      @default(0)
-  totalLoss      Int      @default(0)
-  taxaAcerto     Float    @default(0)
-  lucroTotal     Float    @default(0)
-  melhorDia      Float    @default(0)
-  piorDia        Float    @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  capitalFinal   Float    @default(0)
-  capitalInicial Float    @default(0)
-  vlDepositadoSacado Float @default(0)
-  rentabTotal    Float    @default(0)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(uuid())
+  userId             String
+  semana             Int
+  ano                Int
+  dataInicial        DateTime
+  dataFinal          DateTime
+  diasOperados       Int      @default(0)
+  diasPositivos      Int      @default(0)
+  diasNegativos      Int      @default(0)
+  totalWin           Int      @default(0)
+  totalLoss          Int      @default(0)
+  taxaAcerto         Float    @default(0)
+  lucroTotal         Float    @default(0)
+  melhorDia          Float    @default(0)
+  piorDia            Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  capitalFinal       Float    @default(0)
+  capitalInicial     Float    @default(0)
+  vlDepositadoSacado Float    @default(0)
+  rentabTotal        Float    @default(0)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, semana, ano])
 }
@@ -300,4 +303,29 @@ enum TradeStatus {
 enum MovimentoTipo {
   DEPOSITO
   SAQUE
+}
+
+model SignalHistory {
+  id         String    @id @default(uuid())
+  action     String
+  entryPrice Float
+  entryTime  DateTime
+  status     String    @default("OPEN")
+  exitPrice  Float?
+  exitTime   DateTime?
+  mgLevel    Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Estrategia {
+  id        String   @id @default(uuid())
+  userId    String
+  nome      String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, nome])
 }

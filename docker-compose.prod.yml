@@ -1,0 +1,70 @@
+name: traderos-prod
+
+services:
+  postgres-prod:
+    image: postgres:16-alpine
+    container_name: traderos-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_DB: traderos_prod
+      POSTGRES_USER: traderos
+      POSTGRES_PASSWORD: traderos_prod_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traderos -d traderos_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - traderos-prod
+
+  backend-prod:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: traderos-backend-prod
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://traderos:traderos_prod_pass@postgres-prod:5432/traderos_prod?schema=public
+      - JWT_SECRET=traderos_super_secret_prod_key_123
+      - JWT_REFRESH_SECRET=traderos_super_refresh_secret_prod_key_123
+      - FRONTEND_URL=https://usetraderos.com.br
+      - PORT=4001
+      - NODE_ENV=production
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=contato.traderos@gmail.com
+      - SMTP_PASS=ijcjxkmmkijajxqn
+      - SMTP_SECURE=false
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+    networks:
+      - traderos-prod
+
+  frontend-prod:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://192.168.0.102:4001/api
+    container_name: traderos-frontend-prod
+    restart: always
+    ports:
+      - "3002:80"
+    depends_on:
+      - backend-prod
+    networks:
+      - traderos-prod
+
+networks:
+  traderos-prod:
+    driver: bridge
+
+volumes:
+  postgres_prod_data:

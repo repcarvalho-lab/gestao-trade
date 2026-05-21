@@ -12,6 +12,8 @@ import DepositosSaques from '../pages/DepositosSaques/DepositosSaques'
 import PlanejadoRealizado from '../pages/PlanejadoRealizado/PlanejadoRealizado'
 import Relatorios from '../pages/Relatorios/Relatorios'
 import Simulador from '../pages/Simulador/Simulador'
+import { RadarPage } from '../pages/Radar/RadarPage'
+import AdminUsers from '../pages/Admin/AdminUsers'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -40,8 +42,10 @@ export default function AppRouter() {
           <Route path="movimentos" element={<DepositosSaques />} />
           <Route path="relatorios" element={<Relatorios />} />
           <Route path="simulador" element={<Simulador />} />
+          <Route path="radar" element={<RadarPage />} />
           <Route path="configuracoes" element={<Configuracoes />} />
           <Route path="perfil" element={<Perfil />} />
+          <Route path="admin/users" element={<AdminUsers />} />
         </Route>
         <Route path="*" element={<Navigate to="/painel" replace />} />
       </Routes>

@@ -11,11 +11,12 @@ interface CriarTradeInput {
   valor: number
   motivoId?: string
   motivoOutro?: string
+  estrategia?: string
   horario?: string
 }
 
 export async function criarTrade(input: CriarTradeInput) {
-  const { userId, tradingDayId, tipo, ativo, valor, motivoId, motivoOutro, horario } = input
+  const { userId, tradingDayId, tipo, ativo, valor, motivoId, motivoOutro, estrategia, horario } = input
 
   const dia = await prisma.tradingDay.findFirst({
     where: { id: tradingDayId, userId, isClosed: false },
@@ -85,6 +86,7 @@ export async function criarTrade(input: CriarTradeInput) {
       valor,
       motivoId,
       motivoOutro,
+      estrategia,
       status: 'ABERTA',
       horario: horario ? new Date(horario) : undefined,
     },
@@ -186,6 +188,7 @@ export async function editarTrade(
     valor?: number
     motivoId?: string | null
     motivoOutro?: string | null
+    estrategia?: string | null
     horario?: string
   },
 ) {
@@ -214,6 +217,7 @@ export async function editarTrade(
       ...(updates.valor !== undefined ? { valor: updates.valor, resultado: novoResultado } : {}),
       ...(updates.motivoId !== undefined ? { motivoId: updates.motivoId } : {}),
       ...(updates.motivoOutro !== undefined ? { motivoOutro: updates.motivoOutro } : {}),
+      ...(updates.estrategia !== undefined ? { estrategia: updates.estrategia } : {}),
       ...(updates.horario !== undefined ? { horario: new Date(updates.horario) } : {}),
     },
     include: { motivo: true, ciclo: true },

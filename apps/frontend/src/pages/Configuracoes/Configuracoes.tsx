@@ -13,14 +13,16 @@ import { formatPct, formatUSD } from '../../lib/format'
 
 // ─── Tipos ────────────────────────────────────────────────────
 interface MotivoEntrada { id: string; nome: string; ativo: boolean }
+interface Estrategia { id: string; nome: string; ativo: boolean }
 interface AtivoObj { id: string; nome: string; ativo: boolean; payout: number }
-type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos' | 'ativos' | 'erros' | 'sistema'
+type TabKey = 'estrategia' | 'financeiro' | 'projecao' | 'motivos' | 'estrategias' | 'ativos' | 'erros' | 'sistema'
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: 'estrategia', label: 'Estratégia',          icon: TrendingUp },
+  { key: 'estrategia', label: 'Regras e Metas',          icon: TrendingUp },
   { key: 'financeiro', label: 'Financeiro',          icon: DollarSign },
   { key: 'projecao',   label: 'Projeção',            icon: BarChart2 },
   { key: 'motivos',    label: 'Origem da Entrada',   icon: Tag },
+  { key: 'estrategias',label: 'Estratégias / Gatilhos',icon: Tag },
   { key: 'ativos',     label: 'Ativos Disponíveis',    icon: Tag },
   { key: 'erros',      label: 'Tipos de Erro',        icon: AlertTriangle },
   { key: 'sistema',    label: 'Sistema',              icon: RefreshCw },
@@ -587,6 +589,133 @@ function TabMotivos() {
     </div>
   )
 }
+
+// ─── Aba Estratégias ───────────────────────────────────────────
+function TabEstrategias() {
+  const [estrategias, setEstrategias] = useState<Estrategia[]>([])
+  const [loading, setLoading] = useState(true)
+  const [novoNome, setNovoNome] = useState('')
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editandoNome, setEditandoNome] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const carregar = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data } = await api.get('/estrategias?todos=true')
+      setEstrategias(data)
+    } catch { setError('Erro ao carregar estratégias') }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const handleAdicionar = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoNome.trim()) return
+    setSaving(true)
+    try {
+      await api.post('/estrategias', { nome: novoNome.trim() })
+      setNovoNome('')
+      carregar()
+    } catch { setError('Erro ao criar estratégia') }
+    finally { setSaving(false) }
+  }
+
+  const handleEditar = async (id: string) => {
+    if (!editandoNome.trim()) return
+    setSaving(true)
+    try {
+      await api.patch(`/estrategias/${id}`, { nome: editandoNome.trim() })
+      setEditandoId(null)
+      carregar()
+    } catch { setError('Erro ao editar estratégia') }
+    finally { setSaving(false) }
+  }
+
+  const handleToggle = async (m: Estrategia) => {
+    try {
+      if (m.ativo) await api.delete(`/estrategias/${m.id}`)
+      else await api.post(`/estrategias/${m.id}/reativar`)
+      carregar()
+    } catch { setError('Erro ao alterar estratégia') }
+  }
+
+  return (
+    <div className="card" style={{ padding: '1.5rem', maxWidth: 700 }}>
+      <h3 style={{ margin: '0 0 0.5rem', fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>Estratégias / Gatilhos</h3>
+      <p style={{ margin: '0 0 1.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+        Adicione, edite e desative estratégias e padrões de mercado. Estratégias desativadas são preservadas no histórico.
+      </p>
+
+      <form onSubmit={handleAdicionar} style={{ display: 'flex', gap: '0.625rem', marginBottom: '1.5rem', background: 'var(--bg-surface)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+        <input className="input" placeholder="Nome da nova estratégia..."
+          value={novoNome} onChange={e => setNovoNome(e.target.value)} id="nova-estrategia-input" style={{ flex: 1 }} />
+        <button type="submit" className="btn btn-primary" disabled={saving || !novoNome.trim()} style={{ whiteSpace: 'nowrap', padding: '0 1.5rem' }}>
+          {saving ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={14} /> Adicionar</>}
+        </button>
+      </form>
+
+      {error && (
+        <div style={{ marginBottom: '1rem', padding: '0.6rem 0.875rem', borderRadius: '0.5rem', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', color: 'var(--accent-loss)', fontSize: '0.8rem' }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+          <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {estrategias.map(m => (
+            <div key={m.id} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem',
+              borderRadius: '0.5rem', border: '1px solid var(--border)',
+              background: m.ativo ? 'var(--bg-surface)' : 'rgba(255,255,255,0.02)',
+              opacity: m.ativo ? 1 : 0.5, transition: 'all 0.15s',
+            }}>
+              <div style={{ flex: 1, minWidth: 0, marginRight: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {editandoId === m.id ? (
+                  <input className="input" value={editandoNome} onChange={e => setEditandoNome(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleEditar(m.id)} autoFocus style={{ width: '100%', maxWidth: 300 }} />
+                ) : (
+                  <span style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{m.nome}</span>
+                )}
+                {!m.ativo && <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>Inativo</span>}
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {editandoId === m.id ? (
+                  <>
+                    <button className="btn btn-success" style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem' }} onClick={() => handleEditar(m.id)}>
+                      <Check size={14} /> Salvar
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.35rem 0.5rem' }} onClick={() => setEditandoId(null)}>
+                      <X size={14} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" style={{ padding: '0.35rem 0.5rem' }}
+                      onClick={() => { setEditandoId(m.id); setEditandoNome(m.nome) }} title="Editar">
+                      <Pencil size={14} />
+                    </button>
+                    <button className="btn btn-ghost" style={{ padding: '0.35rem 0.5rem', color: m.ativo ? 'var(--accent-loss)' : 'var(--accent-win)' }}
+                      onClick={() => handleToggle(m)} title={m.ativo ? 'Desativar' : 'Reativar'}>
+                      {m.ativo ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 // ─── Aba Ativos Disponíveis ─────────────────────────────────────
 function TabAtivos() {
   const [ativos, setAtivos] = useState<AtivoObj[]>([])
@@ -1063,6 +1192,7 @@ export default function Configuracoes() {
         {activeTab === 'financeiro' && <TabFinanceiro {...tabProps} />}
         {activeTab === 'projecao'   && <TabProjecao   {...tabProps} />}
         {activeTab === 'motivos'    && <TabMotivos />}
+        {activeTab === 'estrategias' && <TabEstrategias />}
         {activeTab === 'ativos'     && <TabAtivos />}
         {activeTab === 'erros'      && <TabErrosDia />}
         {activeTab === 'sistema'    && <TabSistema />}
