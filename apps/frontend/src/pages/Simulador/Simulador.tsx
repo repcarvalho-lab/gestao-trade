@@ -8,13 +8,19 @@ import {
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
 
-const getSavedVal = (key: string, defaultVal: any) => {
-  const saved = localStorage.getItem(`traderos-simulador-${key}`);
-  if (saved !== null) return JSON.parse(saved);
-  return defaultVal;
-};
+import { useAuthStore } from '../../store/authStore'
+import api from '../../services/api'
 
 export default function Simulador() {
+  const { user } = useAuthStore()
+  const userId = user?.id || 'default'
+
+  const getSavedVal = (key: string, defaultVal: any) => {
+    const saved = localStorage.getItem(`traderos-simulador-${userId}-${key}`);
+    if (saved !== null) return JSON.parse(saved);
+    return defaultVal;
+  };
+
   // Parâmetros da Simulação
   const [bancaInicial, setBancaInicial] = useState<number>(() => getSavedVal('bancaInicial', 1000))
   const [lucroAtualValor, setLucroAtualValor] = useState<number>(() => getSavedVal('lucroAtualValor', 100))
@@ -30,17 +36,34 @@ export default function Simulador() {
   const [metaAgressiva, setMetaAgressiva] = useState<number>(() => getSavedVal('metaAgressiva', 60))
 
   useEffect(() => {
-    localStorage.setItem('traderos-simulador-bancaInicial', JSON.stringify(bancaInicial))
-    localStorage.setItem('traderos-simulador-lucroAtualValor', JSON.stringify(lucroAtualValor))
-    localStorage.setItem('traderos-simulador-diasRestantes', JSON.stringify(diasRestantes))
-    localStorage.setItem('traderos-simulador-metaDiaria', JSON.stringify(metaDiaria))
-    localStorage.setItem('traderos-simulador-jurosCompostos', JSON.stringify(jurosCompostos))
-    localStorage.setItem('traderos-simulador-metaConservadora', JSON.stringify(metaConservadora))
-    localStorage.setItem('traderos-simulador-metaRealista', JSON.stringify(metaRealista))
-    localStorage.setItem('traderos-simulador-metaAgressiva', JSON.stringify(metaAgressiva))
-    localStorage.setItem('traderos-simulador-aportes', JSON.stringify(aportes))
-    localStorage.setItem('traderos-simulador-diaAporte', JSON.stringify(diaAporte))
-  }, [bancaInicial, lucroAtualValor, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes, diaAporte])
+    api.get('/config').then(res => {
+      const config = res.data;
+      if (config) {
+        if (config.retornoConservador) setMetaConservadora(Number((config.retornoConservador * 100).toFixed(0)));
+        if (config.retornoRealista) setMetaRealista(Number((config.retornoRealista * 100).toFixed(0)));
+        if (config.retornoAgressivo) setMetaAgressiva(Number((config.retornoAgressivo * 100).toFixed(0)));
+        
+        const saldoCorretora = Number(config.saldoInicialCorretora) || 0;
+        const saldoReserva = Number(config.saldoInicialReserva) || 0;
+        if (saldoCorretora + saldoReserva > 0) {
+          setBancaInicial(parseFloat((saldoCorretora + saldoReserva).toFixed(2)));
+        }
+      }
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(`traderos-simulador-${userId}-bancaInicial`, JSON.stringify(bancaInicial))
+    localStorage.setItem(`traderos-simulador-${userId}-lucroAtualValor`, JSON.stringify(lucroAtualValor))
+    localStorage.setItem(`traderos-simulador-${userId}-diasRestantes`, JSON.stringify(diasRestantes))
+    localStorage.setItem(`traderos-simulador-${userId}-metaDiaria`, JSON.stringify(metaDiaria))
+    localStorage.setItem(`traderos-simulador-${userId}-jurosCompostos`, JSON.stringify(jurosCompostos))
+    localStorage.setItem(`traderos-simulador-${userId}-metaConservadora`, JSON.stringify(metaConservadora))
+    localStorage.setItem(`traderos-simulador-${userId}-metaRealista`, JSON.stringify(metaRealista))
+    localStorage.setItem(`traderos-simulador-${userId}-metaAgressiva`, JSON.stringify(metaAgressiva))
+    localStorage.setItem(`traderos-simulador-${userId}-aportes`, JSON.stringify(aportes))
+    localStorage.setItem(`traderos-simulador-${userId}-diaAporte`, JSON.stringify(diaAporte))
+  }, [userId, bancaInicial, lucroAtualValor, diasRestantes, metaDiaria, jurosCompostos, metaConservadora, metaRealista, metaAgressiva, aportes, diaAporte])
 
   const bancaAtual = bancaInicial + lucroAtualValor + aportes
 

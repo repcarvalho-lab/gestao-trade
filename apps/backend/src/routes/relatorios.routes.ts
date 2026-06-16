@@ -26,14 +26,14 @@ function buildTradeFilter(inicio?: string, fim?: string): object {
 }
 
 router.get('/disciplina', catchAsync(async (req: Request, res: Response) => {
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
   const data = await getRelatorioDisciplina(req.user!.userId, buildDayFilter(inicio, fim))
   res.json(data)
 }))
 
 router.get('/estrategias', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   const trades = await prisma.trade.findMany({
     where: {
@@ -92,9 +92,67 @@ router.get('/estrategias', catchAsync(async (req: Request, res: Response) => {
   res.json({ estrategias, totalTrades: trades.length })
 }))
 
+router.get('/gatilhos', catchAsync(async (req: Request, res: Response) => {
+  const userId = req.user!.userId
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
+
+  const trades = await prisma.trade.findMany({
+    where: {
+      userId,
+      status: { in: ['WIN', 'LOSS'] },
+      estrategia: { not: null },
+      ...buildTradeFilter(inicio, fim),
+    },
+    select: {
+      status: true,
+      resultado: true,
+      estrategia: true,
+    },
+  })
+
+  // Agrupa por estrategia
+  const mapa: Record<string, {
+    nome: string
+    total: number
+    wins: number
+    losses: number
+    resultadoTotal: number
+    resultados: number[]
+  }> = {}
+
+  for (const t of trades) {
+    const key = t.estrategia || 'Não Informada'
+    const nome = key
+
+    if (!mapa[key]) mapa[key] = { nome, total: 0, wins: 0, losses: 0, resultadoTotal: 0, resultados: [] }
+
+    const g = mapa[key]
+    g.total++
+    if (t.status === 'WIN') g.wins++
+    else g.losses++
+    const res = t.resultado ?? 0
+    g.resultadoTotal += res
+    g.resultados.push(res)
+  }
+
+  const gatilhos = Object.values(mapa).map(g => ({
+    nome: g.nome,
+    total: g.total,
+    wins: g.wins,
+    losses: g.losses,
+    taxaAcerto: g.total > 0 ? g.wins / g.total : 0,
+    resultadoTotal: g.resultadoTotal,
+    resultadoMedio: g.total > 0 ? g.resultadoTotal / g.total : 0,
+    melhorTrade: Math.max(...g.resultados, 0),
+    piorTrade: Math.min(...g.resultados, 0),
+  })).sort((a, b) => b.taxaAcerto - a.taxaAcerto)
+
+  res.json({ gatilhos, totalTrades: trades.length })
+}))
+
 router.get('/erros', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   const dias = await prisma.tradingDay.findMany({
     where: { userId, isClosed: true, ...buildDayFilter(inicio, fim) },
@@ -153,7 +211,7 @@ router.get('/erros', catchAsync(async (req: Request, res: Response) => {
 
 router.get('/meta', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   type StatusMeta = 'META_IDEAL' | 'META_MAXIMA' | 'META_NAO_ATINGIDA' | 'STOP'
   const statusValidos: StatusMeta[] = ['META_IDEAL', 'META_MAXIMA', 'STOP', 'META_NAO_ATINGIDA']
@@ -266,7 +324,7 @@ router.get('/performance', catchAsync(async (req: Request, res: Response) => {
 
 router.get('/ativos', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   const trades = await prisma.trade.findMany({
     where: {
@@ -305,10 +363,10 @@ router.get('/ativos', catchAsync(async (req: Request, res: Response) => {
 
 router.get('/dias-semana', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   const dias = await prisma.tradingDay.findMany({
-    where: { userId, isClosed: true, ...buildDayFilter(inicio, fim) },
+    where: { userId, resultadoDia: { not: null }, ...buildDayFilter(inicio, fim) },
     select: { date: true, resultadoDia: true, taxaAcerto: true, win: true, loss: true },
     orderBy: { date: 'asc' },
   })
@@ -349,7 +407,7 @@ router.get('/dias-semana', catchAsync(async (req: Request, res: Response) => {
 
 router.get('/horarios', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   const trades = await prisma.trade.findMany({
     where: {
@@ -365,7 +423,7 @@ router.get('/horarios', catchAsync(async (req: Request, res: Response) => {
 
 router.get('/score', catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!.userId
-  const { inicio, fim } = req.query as { inicio?: string; fim?: string }
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
 
   const dias = await prisma.tradingDay.findMany({
     where: { userId, isClosed: true, ...buildDayFilter(inicio, fim) },
@@ -434,4 +492,106 @@ router.get('/score', catchAsync(async (req: Request, res: Response) => {
   })
 }))
 
+
+
+router.get('/radar-stats', catchAsync(async (req: Request, res: Response) => {
+  const { inicio, fim, strategy } = req.query as { inicio?: string; fim?: string; strategy?: string }
+  
+  const dateFilter: any = {}
+  if (inicio || fim) {
+    dateFilter.entryTime = {}
+    if (inicio) dateFilter.entryTime.gte = new Date(inicio)
+    if (fim) dateFilter.entryTime.lte = new Date(fim)
+  }
+  if (strategy && strategy !== 'ALL') {
+    dateFilter.strategy = strategy
+  }
+
+  const signals = await prisma.signalHistory.findMany({
+    where: {
+      status: { in: ['WIN', 'LOSS', 'WIN_MG1'] },
+      ...dateFilter
+    }
+  })
+
+  let total = 0
+  let wins = 0
+  let losses = 0
+
+  const diaDaSemana = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
+  const diaDaSemanaWins = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
+
+  const faixasHorario: Record<string, { total: number, wins: number }> = {}
+
+  const direcao = {
+    BUY: { total: 0, wins: 0 },
+    SELL: { total: 0, wins: 0 }
+  }
+
+  for (const s of signals) {
+    total++
+    const isWin = s.status === 'WIN' || s.status === 'WIN_MG1'
+    if (isWin) wins++
+    else losses++
+
+    const dtStr = new Date(s.entryTime).toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' })
+    const dt = new Date(dtStr)
+    
+    const dia = dt.getDay() // 0 = Dom, 6 = Sab
+    diaDaSemana[dia as keyof typeof diaDaSemana]++
+    if (isWin) diaDaSemanaWins[dia as keyof typeof diaDaSemanaWins]++
+
+    const hora = dt.getHours()
+    const horaFormatada = `${hora.toString().padStart(2, '0')}:00 - ${(hora+1).toString().padStart(2, '0')}:00`
+    if (!faixasHorario[horaFormatada]) faixasHorario[horaFormatada] = { total: 0, wins: 0 }
+    faixasHorario[horaFormatada].total++
+    if (isWin) faixasHorario[horaFormatada].wins++
+
+    const isBuy = s.action.includes('BUY')
+    if (isBuy) {
+      direcao.BUY.total++
+      if (isWin) direcao.BUY.wins++
+    } else {
+      direcao.SELL.total++
+      if (isWin) direcao.SELL.wins++
+    }
+  }
+
+  const diasNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+  
+  res.json({
+    geral: {
+      total,
+      wins,
+      losses,
+      winRate: total > 0 ? (wins / total) * 100 : 0
+    },
+    porDia: Object.keys(diaDaSemana).map(d => ({
+      dia: diasNames[Number(d)],
+      total: diaDaSemana[Number(d) as keyof typeof diaDaSemana],
+      wins: diaDaSemanaWins[Number(d) as keyof typeof diaDaSemanaWins],
+      winRate: diaDaSemana[Number(d) as keyof typeof diaDaSemana] > 0 
+        ? (diaDaSemanaWins[Number(d) as keyof typeof diaDaSemanaWins] / diaDaSemana[Number(d) as keyof typeof diaDaSemana]) * 100 
+        : 0
+    })),
+    porHorario: Object.keys(faixasHorario).sort().map(h => ({
+      horario: h,
+      total: faixasHorario[h].total,
+      wins: faixasHorario[h].wins,
+      winRate: faixasHorario[h].total > 0 ? (faixasHorario[h].wins / faixasHorario[h].total) * 100 : 0
+    })),
+    porDirecao: {
+      buy: {
+        total: direcao.BUY.total,
+        wins: direcao.BUY.wins,
+        winRate: direcao.BUY.total > 0 ? (direcao.BUY.wins / direcao.BUY.total) * 100 : 0
+      },
+      sell: {
+        total: direcao.SELL.total,
+        wins: direcao.SELL.wins,
+        winRate: direcao.SELL.total > 0 ? (direcao.SELL.wins / direcao.SELL.total) * 100 : 0
+      }
+    }
+  })
+}))
 export default router
